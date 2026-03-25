@@ -6,10 +6,9 @@ A Microsoft Edge browser extension that uses Azure AI Foundry to optimize select
 
 ### Core Functionality
 - **Right-click Optimization**: Select any text on any website and right-click to optimize it with AI
-- **Smart Content Detection**: Automatically detects if the selected text is in an editable field (like text inputs, textareas, or contenteditable elements)
-- **Dual Output Modes**:
-  - **Direct Replacement**: For editable fields, the optimized text replaces the original selection instantly
-  - **New Tab Display**: For non-editable content, results open in a dedicated tab with formatting options
+- **In-Place Replacement**: Selected text is immediately replaced with "Loading..." while AI processes in the background
+- **Visual Feedback**: Loading text shows processing status, then transforms to display the optimized result
+- **Universal Compatibility**: Works on any webpage content, whether editable or read-only
 
 ### AI Integration
 - **Azure AI Foundry Support**: Integrates with Azure OpenAI Service for powerful language models
@@ -17,11 +16,10 @@ A Microsoft Edge browser extension that uses Azure AI Foundry to optimize select
 - **Multiple Model Support**: Works with any Azure OpenAI deployment (GPT-3.5, GPT-4, etc.)
 
 ### User Experience
-- **Loading Indicators**: Visual feedback during AI processing
-- **Error Handling**: Comprehensive error messages and fallback options
-- **Copy to Clipboard**: Easy copying of optimized results
-- **Markdown Rendering**: Results display with proper formatting
-- **Notifications**: Browser notifications for status updates
+- **In-Place Processing**: No new tabs or popups - everything happens where you selected the text
+- **Visual Loading States**: Clear visual feedback with styled loading and result indicators
+- **Error Handling**: Comprehensive error messages displayed in place
+- **Instant Results**: Optimized text appears immediately when processing completes
 
 ### Configuration
 - **Settings Page**: Easy-to-use interface for API configuration
@@ -72,15 +70,14 @@ Once published, you can install directly from the Edge Add-ons store.
 ### Basic Usage
 1. **Select Text**: Highlight any text on any webpage
 2. **Right-click**: Choose "📎Optimize copy with AI" from the context menu
-3. **Wait for Processing**: The extension will show a loading notification
-4. **View Results**:
-   - If in an editable field: Text is replaced automatically
-   - If in regular content: A new tab opens with the optimized version
+3. **Watch the Magic**: Selected text transforms to "Loading..." while AI processes
+4. **See Results**: Loading text is replaced with your optimized content
 
 ### Advanced Usage
+- **Any Content Type**: Works on articles, social media posts, emails, documents, and more
 - **Custom Prompts**: Modify the AI prompt in settings for different content types (blog posts, tweets, LinkedIn updates, etc.)
-- **Batch Processing**: Select multiple paragraphs or sections for comprehensive optimization
-- **Copy & Close**: Use the "Copy & Close" button to copy results and close the tab in one click
+- **Visual Feedback**: Loading state shows yellow background, results show green background
+- **Error Handling**: If API fails, error message appears in place of selected text
 
 ## 🔧 Technical Details
 
