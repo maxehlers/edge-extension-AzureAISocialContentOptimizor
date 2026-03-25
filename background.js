@@ -132,65 +132,34 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (!tab?.id) return;
 
   try {
-    const isEditable = await checkEditableSelection(tab.id);
+    // Always replace in place: show loading first, then replace with result
+    const loadingId = Date.now().toString(); // Unique ID for this operation
 
-    if (isEditable) {
-      // For editable content, show loading notification and process
-      chrome.notifications.create({
-        type: 'basic',
-        iconUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTQgMTJoMnY0aDJ2LTJ6TTggNmg0djJoLTR6TTggMTJ2NGgyVjEyek0xMiA4aDJ2NGgtMnoiIGZpbGw9IndoaXRlIi8+Cjwvc3ZnPg==',
-        title: 'Processing with AI',
-        message: 'Optimizing your selected text...'
-      });
-
-      const optimizedText = await callAzureAI(info.selectionText);
-      safeSendMessage(tab.id, { action: 'replaceSelection', text: optimizedText });
-
-      // Clear the notification after a moment
-      setTimeout(() => {
-        chrome.notifications.clear('ai-processing');
-      }, 2000);
-      return;
-    }
-
-    // Non-editable content: create result tab immediately with loading state
-    chrome.tabs.create({ url: chrome.runtime.getURL('result.html') }, async (newTab) => {
-      // Show loading state immediately
-      chrome.tabs.onUpdated.addListener(function listener(tabId, changeInfo) {
-        if (tabId === newTab.id && changeInfo.status === 'complete') {
-          safeSendMessage(newTab.id, { action: 'setLoading', text: 'Processing your text with AI...' });
-          chrome.tabs.onUpdated.removeListener(listener);
-        }
-      });
-
-      try {
-        const optimizedText = await callAzureAI(info.selectionText);
-        // Update with result
-        chrome.tabs.onUpdated.addListener(function resultListener(tabId, changeInfo) {
-          if (tabId === newTab.id && changeInfo.status === 'complete') {
-            safeSendMessage(newTab.id, { action: 'setResult', text: optimizedText });
-            chrome.tabs.onUpdated.removeListener(resultListener);
-          }
-        });
-      } catch (error) {
-        console.error('Error optimizing text:', error);
-        chrome.tabs.onUpdated.addListener(function errorListener(tabId, changeInfo) {
-          if (tabId === newTab.id && changeInfo.status === 'complete') {
-            safeSendMessage(newTab.id, { action: 'setError', error: error.message });
-            chrome.tabs.onUpdated.removeListener(errorListener);
-          }
-        });
-      }
+    // Show "Loading..." in place of selected text
+    safeSendMessage(tab.id, {
+      action: 'showLoading',
+      loadingId: loadingId,
+      text: 'Loading...'
     });
+
+    // Process with AI in background
+    const optimizedText = await callAzureAI(info.selectionText);
+
+    // Replace loading text with result
+    safeSendMessage(tab.id, {
+      action: 'replaceResult',
+      loadingId: loadingId,
+      text: optimizedText
+    });
+
   } catch (error) {
     console.error('Error optimizing text:', error);
-    chrome.tabs.create({ url: chrome.runtime.getURL('result.html') }, (newTab) => {
-      chrome.tabs.onUpdated.addListener(function listener(tabId, changeInfo) {
-        if (tabId === newTab.id && changeInfo.status === 'complete') {
-          safeSendMessage(newTab.id, { action: 'setError', error: error.message });
-          chrome.tabs.onUpdated.removeListener(listener);
-        }
-      });
+    // Show error in place of selected text
+    const errorId = Date.now().toString();
+    safeSendMessage(tab.id, {
+      action: 'showLoading',
+      loadingId: errorId,
+      text: 'Error: ' + error.message
     });
   }
 });
