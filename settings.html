@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Settings - Copilot Social Media Optimizer</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; max-width: 400px; }
+    label { display: block; margin-top: 10px; }
+    input { width: 100%; padding: 5px; }
+    button { margin-top: 20px; padding: 10px; background: #0078d4; color: white; border: none; cursor: pointer; }
+    button:hover { background: #005a9e; }
+  </style>
+</head>
+<body>
+  <h1>Azure AI Foundry Settings</h1>
+  <form id="settingsForm">
+    <label for="apiKey">API Key:</label>
+    <input type="password" id="apiKey" required>
+
+    <label for="endpoint">Endpoint (e.g., https://your-resource.openai.azure.com):</label>
+    <input type="url" id="endpoint" required>
+
+    <label for="deployment">Deployment Name:</label>
+    <input type="text" id="deployment" required>
+
+    <label for="apiVersion">API Version:</label>
+    <input type="text" id="apiVersion" value="2023-05-15" required>
+
+    <label for="initialPrompt">Initial Prompt (AI-Anweisung):</label>
+    <textarea id="initialPrompt" rows="4" style="width: 100%;" required>Du bist der Social Media Manager von Microsoft. Bitte formuliere dies so um, dass es zu mehr Engagement und Klicks für die Zielgruppe "Entscheidungsträger" führt. Halte Dich kurz, prägnant und bleibe in der bestehenden Sprache. Füge ggfs. passende Emojis hinzu.</textarea>
+
+    <button type="submit">Save Settings</button>
+  </form>
+  <script src="settings.js"></script>
+</body>
+</html>

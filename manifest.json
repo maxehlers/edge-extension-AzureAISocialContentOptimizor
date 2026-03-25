@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "Social Media AI Copy Optimizer",
+  "version": "1.0",
+  "description": "Optimize selected text with AI for social media engagement.",
+  "permissions": ["contextMenus", "tabs", "storage", "activeTab", "notifications"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Copilot Social Media Optimizer"
+  },
+  "options_page": "settings.html",
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    }
+  ]
+}
