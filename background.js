@@ -37,6 +37,48 @@ chrome.runtime.onStartup.addListener(() => {
 // Ensure menu is available even when the worker is reloaded
 createContextMenu();
 
+function stripMarkdown(markdownText) {
+  if (!markdownText || typeof markdownText !== 'string') return '';
+
+  let text = markdownText;
+
+  // Code blocks
+  text = text.replace(/```[\s\S]*?```/g, '');
+  // Inline code
+  text = text.replace(/`([^`]+)`/g, '$1');
+
+  // Headers
+  text = text.replace(/^\s*#{1,6}\s+/gm, '');
+
+  // Blockquotes
+  text = text.replace(/^\s*>\s?/gm, '');
+
+  // Lists
+  text = text.replace(/^\s*([-*+]\s+|\d+\.\s+)/gm, '');
+
+  // Bold / Italic
+  text = text.replace(/\*\*(.*?)\*\*/g, '$1');
+  text = text.replace(/__(.*?)__/g, '$1');
+  text = text.replace(/\*(.*?)\*/g, '$1');
+  text = text.replace(/_(.*?)_/g, '$1');
+
+  // Links: [text](url) -> text
+  text = text.replace(/!\[([^\]]*)\]\([^\)]*\)/g, '$1');
+  text = text.replace(/\[([^\]]+)\]\([^\)]*\)/g, '$1');
+
+  // Remove images that may remain
+  text = text.replace(/!\[[^\]]*\]\([^\)]*\)/g, '');
+
+  // Remove horizontal rules
+  text = text.replace(/^\s*([-_*]){3,}\s*$/gm, '');
+
+  // Convert markdown line breaks and extra spaces
+  text = text.replace(/\r\n|\r/g, '\n');
+  text = text.replace(/\n{3,}/g, '\n\n');
+
+  return text.trim();
+}
+
 async function callAzureAI(text) {
   const { apiKey, endpoint, deployment, apiVersion } = await chrome.storage.sync.get(['apiKey', 'endpoint', 'deployment', 'apiVersion']);
   if (!apiKey || !endpoint || !deployment) {
@@ -75,7 +117,8 @@ async function callAzureAI(text) {
   }
 
   const data = await response.json();
-  return data.choices?.[0]?.message?.content || '';
+  const markdownResult = data.choices?.[0]?.message?.content || '';
+  return stripMarkdown(markdownResult);
 
 }
 
@@ -102,64 +145,98 @@ function checkEditableSelection(tabId) {
   });
 }
 
-function safeSendMessage(tabId, message) {
-  try {
-    chrome.tabs.sendMessage(tabId, message, (response) => {
-      if (chrome.runtime.lastError) {
-        // Only log if it's not the common "port closed" error
-        if (!chrome.runtime.lastError.message.includes('closed before a response')) {
-          console.warn('sendMessage failed:', chrome.runtime.lastError.message);
-        }
+async function ensureContentScript(tabId) {
+  const checkAlive = () => new Promise((resolve) => {
+    chrome.tabs.sendMessage(tabId, { action: 'ping' }, (response) => {
+      if (chrome.runtime.lastError || !response?.alive) {
+        resolve(false);
+      } else {
+        resolve(true);
       }
     });
+  });
+
+  let alive = await checkAlive();
+  if (alive) return true;
+
+  // Try to inject content script dynamically if not already present.
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: ['content.js']
+    });
+    alive = await checkAlive();
+    return alive;
+  } catch (err) {
+    console.warn('Could not inject content script dynamically:', err);
+    return false;
+  }
+}
+
+function safeSendMessage(tabId, message) {
+  try {
+    // Fire-and-forget: no callback to avoid "message port closed" warnings
+    chrome.tabs.sendMessage(tabId, message);
   } catch (error) {
+    // If tab cannot receive, fail silently to avoid breakage
     console.warn('Error sending message:', error);
   }
 }
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (!info.selectionText) {
-    // Show notification if no text is selected
-    chrome.notifications.create({
-      type: 'basic',
-      iconUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTE2IDFINGMyLjkgMSAyIDEuOSAyIDN2MTRoMlYzSDE2VjF6TTE5IDVIOGM2LjkgNSA2IDUuOSA2IDd2MTRjMCAxLjEgLjkgMiAyIDJoMTFjMS4xIDAgMi0uOSAyLTJWNUMyMSAxOS4xIDIwLjEgMTkgMTkgMTl6TTE5IDIxSDhWN0gxOVYyMXoiIGZpbGw9IndoaXRlIi8+Cjwvc3ZnPg==',
-      title: 'No Text Selected',
-      message: 'Please select some text before using the AI optimization feature.'
-    });
+    console.warn('No text selected for AI optimization.');
     return;
   }
 
   if (!tab?.id) return;
 
-  try {
-    // Always replace in place: show loading first, then replace with result
-    const loadingId = Date.now().toString(); // Unique ID for this operation
+  const isEditable = await checkEditableSelection(tab.id);
 
-    // Show "Loading..." in place of selected text
-    safeSendMessage(tab.id, {
-      action: 'showLoading',
-      loadingId: loadingId,
-      text: 'Loading...'
-    });
+  if (isEditable) {
+    try {
+      const loadingId = Date.now().toString();
 
-    // Process with AI in background
-    const optimizedText = await callAzureAI(info.selectionText);
+      safeSendMessage(tab.id, {
+        action: 'showLoading',
+        loadingId: loadingId,
+        text: 'Loading...',
+        selectedText: info.selectionText
+      });
 
-    // Replace loading text with result
-    safeSendMessage(tab.id, {
-      action: 'replaceResult',
-      loadingId: loadingId,
-      text: optimizedText
-    });
+      const optimizedText = await callAzureAI(info.selectionText);
 
-  } catch (error) {
-    console.error('Error optimizing text:', error);
-    // Show error in place of selected text
-    const errorId = Date.now().toString();
-    safeSendMessage(tab.id, {
-      action: 'showLoading',
-      loadingId: errorId,
-      text: 'Error: ' + error.message
+      safeSendMessage(tab.id, {
+        action: 'replaceResult',
+        loadingId: loadingId,
+        text: optimizedText
+      });
+    } catch (error) {
+      console.error('Error optimizing text:', error);
+      const errorId = Date.now().toString();
+      safeSendMessage(tab.id, {
+        action: 'showLoading',
+        loadingId: errorId,
+        text: 'Error: ' + error.message
+      });
+    }
+  } else {
+    chrome.tabs.create({ url: chrome.runtime.getURL('result.html') }, (newTab) => {
+      chrome.tabs.onUpdated.addListener(function listener(tabId, changeInfo) {
+        if (tabId === newTab.id && changeInfo.status === 'complete') {
+          chrome.tabs.sendMessage(tabId, { action: 'setLoading', text: 'Processing your text with AI...' });
+          chrome.tabs.onUpdated.removeListener(listener);
+
+          (async () => {
+            try {
+              const optimizedText = await callAzureAI(info.selectionText);
+              chrome.tabs.sendMessage(tabId, { action: 'setResult', text: optimizedText });
+            } catch (error) {
+              chrome.tabs.sendMessage(tabId, { action: 'setError', error: error.message });
+            }
+          })();
+        }
+      });
     });
   }
 });

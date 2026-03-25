@@ -1,21 +1,5 @@
 let originalText = '';
 
-function simpleMarkdown(text) {
-  // Escape HTML
-  text = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  // Bold
-  text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-  // Italic
-  text = text.replace(/\*(.*?)\*/g, '<em>$1</em>');
-  // Code
-  text = text.replace(/`(.*?)`/g, '<code>$1</code>');
-  // Links (simple)
-  text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
-  // Line breaks
-  text = text.replace(/\n/g, '<br>');
-  return text;
-}
-
 const processStateEl = document.getElementById('processState');
 
 function setProcessState(text) {
@@ -27,7 +11,8 @@ function setProcessState(text) {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'setResult') {
     originalText = request.text;
-    document.getElementById('resultDisplay').innerHTML = simpleMarkdown(request.text);
+    const display = document.getElementById('resultDisplay');
+    display.textContent = request.text;
     setProcessState('The response is ready.');
   } else if (request.action === 'setError') {
     document.getElementById('errorText').textContent = 'Error: ' + request.error;
@@ -35,7 +20,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     setProcessState('Fehler aufgetreten');
   } else if (request.action === 'setLoading') {
     setProcessState(request.text);
-    document.getElementById('resultDisplay').innerHTML = '<div style="text-align: center; padding: 40px;"><div style="display: inline-block; width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #0078d4; border-radius: 50%; animation: spin 1s linear infinite;"></div><br><br><span style="color: #666;">Please wait...</span></div><style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>';
+    const loading = document.createTextNode(request.text);
+    const display = document.getElementById('resultDisplay');
+    display.textContent = '';
+    display.appendChild(loading);
   }
 });
 

@@ -3,7 +3,7 @@
   "name": "Social Media AI Copy Optimizer",
   "version": "1.0",
   "description": "Optimize selected text with AI for social media engagement.",
-  "permissions": ["contextMenus", "tabs", "storage", "activeTab", "notifications"],
+  "permissions": ["contextMenus", "tabs", "storage", "activeTab", "notifications", "scripting"],
   "background": {
     "service_worker": "background.js"
   },
