@@ -1,15 +1,32 @@
-# Social Media AI Copy Optimizer
+﻿# Social Media AI Copy Optimizer
 
-A Microsoft Edge browser extension that uses Azure AI Foundry to optimize selected text for better social media engagement. Select any text, right-click, and get AI-optimized copy in a clean popup window — ready to copy to your clipboard.
+A Microsoft Edge browser extension that uses Azure AI Foundry to optimize selected text for better social media engagement — and to generate social media posts for any webpage you visit.
 
 ## Features
 
-- **Right-click optimization** — Select any text on any page and choose *📎 Optimize copy with AI* from the context menu
-- **Popup result window** — Shows a dedicated Fluent 2-styled popup with the AI-optimized result
+### Core
+- **📎 Optimize copy with AI** — Select any text, right-click, and get an AI-optimized social media post in a Fluent 2 popup window
+- **🌐 Create Social Media Copy for this Website** — Right-click anywhere on a page (no selection needed) to generate a promotion post using the page's actual content
+- **Dynamic popup title** — Each result gets an AI-generated 3–5 word headline summarizing the generated post
 - **Copy to clipboard** — One-click copy or copy-and-close buttons
 - **Markdown stripping** — AI responses are automatically cleaned of all markdown formatting
-- **Customizable AI prompt** — Tailor the instructions to your audience, tone, and language
-- **Fluent 2 design** — Result and settings windows follow Microsoft's Fluent 2 / Reimagine design system
+
+### AI-Powered Optimization Suggestions
+- After each result, the AI suggests **4 follow-up optimizations** (e.g. "Make this shorter", "Add a stronger CTA")
+- Suggestions are shown as clickable cards with **semantic icons** below the result
+- Clicking a card rewrites the result accordingly and generates 4 fresh suggestions
+- A loading indicator is shown while suggestions are fetching
+
+### Design & UX
+- **Fluent 2 / Microsoft Reimagine** design system throughout (result popup + settings)
+- **Yellow warning toast** for API errors — auto-dismisses after 5 seconds
+- **Green toast** for copy confirmation — auto-dismisses after 3 seconds
+- **Settings saved toast** — replaces browser alert on save
+
+### Configuration
+- **Customizable AI prompt** — tailor tone, language, and audience in settings
+- Settings page with descriptive help text and links for every field
+- Centered, Fluent 2-styled settings layout
 
 ## Prerequisites
 
@@ -41,10 +58,19 @@ Settings are saved with a toast confirmation and stored securely in Edge's sync 
 
 ## Usage
 
+### Optimize selected text
 1. Select any text on a webpage
 2. Right-click → **📎 Optimize copy with AI**
-3. A popup window opens showing a loading spinner while the AI processes
+3. A popup opens with a loading spinner while the AI processes
 4. Once ready, click **Copy to Clipboard** or **Copy & Close**
+5. Use the 4 suggestion cards below the result for further refinements
+
+### Generate a post for a whole webpage
+1. Navigate to any webpage
+2. Right-click anywhere (optionally select a quote to include)
+3. Choose **🌐 Create Social Media Copy for this Website**
+4. The extension extracts the page content and sends it to Azure AI — no crawling needed
+5. Result appears in the same popup window
 
 ## Technical Details
 
@@ -52,21 +78,31 @@ Settings are saved with a toast confirmation and stored securely in Edge's sync 
 
 | File | Role |
 |---|---|
-| `background.js` | Service worker — context menu, Azure AI API calls, popup window management |
+| `background.js` | Service worker — context menus, all Azure AI API calls, popup window management |
 | `content.js` | Content script — ping responder for dynamic injection detection |
-| `result.html/js` | Popup result window UI |
+| `result.html/js` | Popup result window with optimization suggestion cards |
 | `settings.html/js` | Configuration UI |
 | `popup.html` | Extension toolbar popup |
+
+### API calls made per interaction
+
+| Call | Purpose | `max_completion_tokens` |
+|---|---|---|
+| `callAzureAI` | Optimize selected text | 800 |
+| `callAzureAIForWebsite` | Generate post for full page | 1200 |
+| `getOptimizationSuggestions` | Fetch 4 follow-up suggestions | 300 |
+| `applyOptimizationInstruction` | Apply a selected suggestion | 800 |
+| `generateTitle` | Generate 3–5 word popup headline | 60 |
 
 ### Permissions
 
 | Permission | Purpose |
 |---|---|
-| `contextMenus` | Right-click menu entry |
+| `contextMenus` | Right-click menu entries |
 | `tabs` | Messaging with the result popup tab |
 | `storage` | Persisting settings and API credentials |
 | `activeTab` | Access to the currently active tab |
-| `scripting` | Dynamic content script injection as fallback |
+| `scripting` | Extracting page `innerText` for website copy; dynamic content script injection |
 | `windows` | Creating the result popup window |
 
 ### API Integration
@@ -75,52 +111,11 @@ Calls the Azure OpenAI Chat Completions REST API:
 ```
 POST {endpoint}/openai/deployments/{deployment}/chat/completions?api-version={version}
 ```
-The configured prompt and selected text are sent as a single user message. The response is stripped of all markdown formatting before display.
+All calls use `max_completion_tokens` (compatible with `2024-02-01`+). Responses are stripped of markdown before display. Empty responses trigger a descriptive error toast showing the `finish_reason`.
 
 ## Security & Privacy
 
 - API credentials are stored in Edge's built-in encrypted sync storage (`chrome.storage.sync`)
-- Selected text is sent only to your own Azure OpenAI endpoint — no third-party services
+- Selected text and page content are sent only to your own Azure OpenAI endpoint — no third-party services
 - No text is logged or persisted by the extension
 - All API calls are made directly from the browser over HTTPS
-
-- **Context menu not appearing**: Ensure text is properly selected
-- **API errors**: Check your Azure credentials and endpoint configuration
-- **No response**: Verify your internet connection and Azure service status
-
-### Error Messages
-- **"API settings not configured"**: Complete the settings setup
-- **"API call failed"**: Check API key, endpoint, and deployment name
-- **"No text selected"**: Make sure to highlight text before right-clicking
-
-### Debug Mode
-Enable browser developer tools to see console logs for detailed error information.
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🙏 Acknowledgments
-
-- Built with Azure AI Foundry
-- Powered by OpenAI's GPT models
-- Designed for Microsoft Edge
-
-## 📞 Support
-
-For issues, questions, or feature requests:
-- Create an issue on GitHub
-- Check the troubleshooting section
-- Review Azure AI documentation for API-related questions
-
----
-
-**Made with ❤️ for content creators and social media professionals**
