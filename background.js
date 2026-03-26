@@ -122,6 +122,113 @@ async function callAzureAI(text) {
 
 }
 
+function parseOptimizationSuggestions(rawText) {
+  const lines = (rawText || '')
+    .split(/\r?\n/)
+    .map((line) => line.replace(/^\s*(?:[-*]|\d+[.)])\s*/, '').trim())
+    .filter(Boolean);
+
+  const unique = [];
+  for (const line of lines) {
+    if (!unique.includes(line)) unique.push(line);
+    if (unique.length === 4) break;
+  }
+
+  const fallback = [
+    'Make this post shorter.',
+    'Make the headline more attention-grabbing.',
+    'Add a stronger call to action.',
+    'Add relevant emojis.'
+  ];
+
+  while (unique.length < 4) {
+    unique.push(fallback[unique.length]);
+  }
+
+  return unique.slice(0, 4);
+}
+
+async function getOptimizationSuggestions(currentText) {
+  const { apiKey, endpoint, deployment, apiVersion } = await chrome.storage.sync.get(['apiKey', 'endpoint', 'deployment', 'apiVersion']);
+  if (!apiKey || !endpoint || !deployment) {
+    throw new Error('API settings not configured');
+  }
+
+  const version = apiVersion || '2023-05-15';
+  const url = `${endpoint}/openai/deployments/${deployment}/chat/completions?api-version=${version}`;
+
+  const prompt = [
+    'You are helping optimize social-media copy.',
+    'Given the text below, return exactly 4 short optimization actions.',
+    'Each action must be a standalone instruction (max 8 words).',
+    'Return plain text only, one action per line, no numbering.'
+  ].join('\n');
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'api-key': apiKey
+    },
+    body: JSON.stringify({
+      messages: [
+        { role: 'user', content: `${prompt}\n\nTEXT:\n${currentText}` }
+      ],
+      max_tokens: 180
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`API call failed: ${response.status}`);
+  }
+
+  const data = await response.json();
+  const suggestionText = stripMarkdown(data.choices?.[0]?.message?.content || '');
+  return parseOptimizationSuggestions(suggestionText);
+}
+
+async function applyOptimizationInstruction(currentText, instruction) {
+  const { apiKey, endpoint, deployment, apiVersion } = await chrome.storage.sync.get(['apiKey', 'endpoint', 'deployment', 'apiVersion']);
+  if (!apiKey || !endpoint || !deployment) {
+    throw new Error('API settings not configured');
+  }
+
+  const version = apiVersion || '2023-05-15';
+  const url = `${endpoint}/openai/deployments/${deployment}/chat/completions?api-version=${version}`;
+
+  const prompt = [
+    'Rewrite the text according to this instruction:',
+    instruction,
+    '',
+    'Rules:',
+    '- Keep the original language.',
+    '- Return only the final rewritten text.',
+    '- No explanation.'
+  ].join('\n');
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'api-key': apiKey
+    },
+    body: JSON.stringify({
+      messages: [
+        { role: 'user', content: `${prompt}\n\nTEXT:\n${currentText}` }
+      ],
+      max_tokens: 500
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`API call failed: ${response.status}`);
+  }
+
+  const data = await response.json();
+  const markdownResult = data.choices?.[0]?.message?.content || '';
+  return stripMarkdown(markdownResult);
+}
+
 async function ensureContentScript(tabId) {
   const checkAlive = () => new Promise((resolve) => {
     chrome.tabs.sendMessage(tabId, { action: 'ping' }, (response) => {
@@ -204,5 +311,31 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       });
     }
   );
+});
+
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'getOptimizations') {
+    (async () => {
+      try {
+        const suggestions = await getOptimizationSuggestions(request.text || '');
+        sendResponse({ ok: true, suggestions });
+      } catch (error) {
+        sendResponse({ ok: false, error: error.message || String(error) });
+      }
+    })();
+    return true;
+  }
+
+  if (request.action === 'applyOptimization') {
+    (async () => {
+      try {
+        const text = await applyOptimizationInstruction(request.text || '', request.instruction || '');
+        sendResponse({ ok: true, text });
+      } catch (error) {
+        sendResponse({ ok: false, error: error.message || String(error) });
+      }
+    })();
+    return true;
+  }
 });
 

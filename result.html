@@ -67,6 +67,79 @@
       margin-bottom: 16px;
     }
     .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .optimization-section {
+      margin-bottom: 16px;
+    }
+    .optimization-title {
+      font-size: var(--font-size-200);
+      font-weight: var(--font-weight-semibold);
+      margin-bottom: 8px;
+    }
+    .optimization-cards {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+    @media (max-width: 640px) {
+      .optimization-cards { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 380px) {
+      .optimization-cards { grid-template-columns: 1fr; }
+    }
+    .optimization-card {
+      width: 100%;
+      text-align: center;
+      background: var(--color-neutral-surface);
+      border: 1px solid var(--color-neutral-stroke);
+      border-radius: var(--radius-medium);
+      padding: 12px 8px;
+      font-family: var(--font-family);
+      font-size: var(--font-size-100);
+      color: var(--color-neutral-fg);
+      cursor: pointer;
+      transition: border-color .1s, background .1s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    .optimization-card svg {
+      width: 20px;
+      height: 20px;
+      stroke: var(--color-brand);
+      stroke-width: 2;
+      fill: none;
+    }
+    .optimization-card:hover {
+      border-color: var(--color-brand);
+      background: #F0F6FC;
+    }
+    .optimization-card:disabled {
+      opacity: .6;
+      cursor: progress;
+    }
+    .optimization-loading {
+      display: none;
+      text-align: center;
+      padding: 16px 8px;
+      color: var(--color-neutral-fg-secondary);
+      font-size: var(--font-size-100);
+    }
+    .optimization-loading.active {
+      display: block;
+    }
+    .optimization-loading::before {
+      content: '';
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      margin-right: 6px;
+      border: 2px solid var(--color-brand);
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      vertical-align: middle;
+    }
     .btn {
       display: inline-flex; align-items: center; gap: 6px;
       padding: 6px 12px;
@@ -122,6 +195,12 @@
 
   <div id="processState" class="status-bar loading">Processing selection&hellip; waiting for AI response.</div>
   <div id="resultDisplay" class="result-card"></div>
+
+  <section id="optimizationSection" class="optimization-section" style="display:none;">
+    <h2 class="optimization-title">Try another optimization</h2>
+    <div id="optimizationLoading" class="optimization-loading">Loading suggestions...</div>
+    <div id="optimizationCards" class="optimization-cards"></div>
+  </section>
 
   <div class="actions">
     <button id="copyBtn" class="btn btn-primary">
