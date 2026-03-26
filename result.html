@@ -4,39 +4,147 @@
   <meta charset="UTF-8">
   <title>Optimized Copy</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
-    textarea { width: 100%; height: 300px; padding: 10px; font-size: 14px; }
-    button { margin-top: 10px; padding: 10px; background: #0078d4; color: white; border: none; cursor: pointer; }
-    button:hover { background: #005a9e; }
-    .error { color: red; }
+    :root {
+      --color-brand: #0078D4;
+      --color-brand-hover: #106EBE;
+      --color-brand-pressed: #005A9E;
+      --color-neutral-bg: #F5F5F5;
+      --color-neutral-surface: #FFFFFF;
+      --color-neutral-stroke: #D1D1D1;
+      --color-neutral-stroke-subtle: #E8E8E8;
+      --color-neutral-fg: #242424;
+      --color-neutral-fg-secondary: #616161;
+      --color-error: #C50F1F;
+      --color-error-bg: #FDE7E9;
+      --radius-small: 4px;
+      --radius-medium: 8px;
+      --shadow-2: 0 1px 2px rgba(0,0,0,.14), 0 0 2px rgba(0,0,0,.12);
+      --shadow-8: 0 4px 8px rgba(0,0,0,.14), 0 0 2px rgba(0,0,0,.12);
+      --font-family: 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+      --font-size-100: 12px;
+      --font-size-200: 14px;
+      --font-size-400: 20px;
+      --font-weight-semibold: 600;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font-family);
+      font-size: var(--font-size-200);
+      color: var(--color-neutral-fg);
+      background: var(--color-neutral-bg);
+      padding: 24px;
+    }
+    .app-header {
+      display: flex; align-items: center; gap: 12px; margin-bottom: 24px;
+    }
+    .app-title {
+      font-size: var(--font-size-400);
+      font-weight: var(--font-weight-semibold);
+    }
+    .status-bar {
+      font-size: var(--font-size-100);
+      color: var(--color-neutral-fg-secondary);
+      margin-bottom: 8px;
+      display: flex; align-items: center; gap: 6px;
+      min-height: 20px;
+    }
+    .status-bar.loading::before {
+      content: '';
+      display: inline-block; width: 12px; height: 12px;
+      border: 2px solid var(--color-brand); border-top-color: transparent;
+      border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .result-card {
+      background: var(--color-neutral-surface);
+      border: 1px solid var(--color-neutral-stroke-subtle);
+      border-radius: var(--radius-medium);
+      box-shadow: var(--shadow-2);
+      padding: 16px;
+      min-height: 240px;
+      white-space: pre-wrap;
+      line-height: 1.6;
+      margin-bottom: 16px;
+    }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 12px;
+      border-radius: var(--radius-small);
+      font-family: var(--font-family);
+      font-size: var(--font-size-200);
+      font-weight: var(--font-weight-semibold);
+      cursor: pointer; border: 1px solid transparent;
+      transition: background .1s;
+    }
+    .btn-primary { background: var(--color-brand); color: #fff; border-color: var(--color-brand); }
+    .btn-primary:hover { background: var(--color-brand-hover); }
+    .btn-primary:active { background: var(--color-brand-pressed); }
+    .btn-secondary { background: var(--color-neutral-surface); color: var(--color-brand); border-color: var(--color-neutral-stroke); }
+    .btn-secondary:hover { background: #F0F6FC; border-color: var(--color-brand); }
+    .error-panel {
+      display: none;
+      background: var(--color-error-bg);
+      border: 1px solid #F1707B;
+      border-radius: var(--radius-medium);
+      padding: 16px;
+      margin-top: 16px;
+      color: var(--color-error);
+    }
+    .error-panel p { margin-bottom: 8px; }
+    .toast {
+      display: none;
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: var(--color-neutral-fg); color: #fff;
+      padding: 8px 16px;
+      border-radius: var(--radius-medium);
+      box-shadow: var(--shadow-8);
+      font-size: var(--font-size-200);
+      z-index: 1000;
+      animation: fadeIn .15s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateX(-50%) translateY(6px); }
+      to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
   </style>
 </head>
 <body>
-  <h1>Optimized Social Media Copy</h1>
-  <div id="processState" style="color: #666; font-style: italic; margin-bottom: 8px;">Processing selection... waiting for AI response.</div>
-  <div id="resultDisplay" style="border: 1px solid #ccc; padding: 10px; min-height: 300px; white-space: pre-wrap;"></div>
-  <button id="copyBtn">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z" fill="white"/>
+  <header class="app-header">
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="13" height="13" fill="#F25022"/>
+      <rect x="15" width="13" height="13" fill="#7FBA00"/>
+      <rect y="15" width="13" height="13" fill="#00A4EF"/>
+      <rect x="15" y="15" width="13" height="13" fill="#FFB900"/>
     </svg>
-    Copy to Clipboard
-  </button>
-  <button id="copyCloseBtn" style="margin-left: 10px; background: #28a745;">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z" fill="white"/>
-    </svg>
-    Copy & Close
-  </button>
-  <div id="modal" style="display:none; position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 1000;">
-    <div style="background: white; padding: 16px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,.3); max-width: 320px; text-align: center;">
-      <p id="modalText" style="margin: 0 0 12px;">Copied to clipboard.</p>
-      <button id="modalCloseBtn" style="padding: 8px 12px; background:#0078d4; color:white; border:none; cursor:pointer; border-radius:4px;">Close</button>
-    </div>
+    <h1 class="app-title">Optimized Social Media Copy</h1>
+  </header>
+
+  <div id="processState" class="status-bar loading">Processing selection&hellip; waiting for AI response.</div>
+  <div id="resultDisplay" class="result-card"></div>
+
+  <div class="actions">
+    <button id="copyBtn" class="btn btn-primary">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z" fill="currentColor"/>
+      </svg>
+      Copy to Clipboard
+    </button>
+    <button id="copyCloseBtn" class="btn btn-secondary">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z" fill="currentColor"/>
+      </svg>
+      Copy &amp; Close
+    </button>
   </div>
-  <div id="errorMsg" class="error" style="display: none;">
+
+  <div id="errorMsg" class="error-panel">
     <p id="errorText"></p>
-    <button id="openSettingsBtn">Settings öffnen</button>
+    <button id="openSettingsBtn" class="btn btn-secondary">Open Settings</button>
   </div>
+
+  <div id="modal" class="toast"><span id="modalText"></span></div>
+
   <script src="result.js"></script>
 </body>
 </html>

@@ -7,8 +7,14 @@ document.getElementById('settingsForm').addEventListener('submit', (e) => {
   const initialPrompt = document.getElementById('initialPrompt').value;
 
   chrome.storage.sync.set({ apiKey, endpoint, deployment, apiVersion, initialPrompt }, () => {
-    alert('Settings saved!');
-    window.close();
+    const toast = document.getElementById('toast');
+    const toastText = document.getElementById('toastText');
+    toastText.textContent = '✓ Settings saved!';
+    toast.style.display = 'block';
+    setTimeout(() => {
+      toast.style.display = 'none';
+      window.close();
+    }, 3000);
   });
 });
 

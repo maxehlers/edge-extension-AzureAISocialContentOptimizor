@@ -11,23 +11,23 @@ function setProcessState(text) {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'setResult') {
     originalText = request.text;
-    const display = document.getElementById('resultDisplay');
-    display.textContent = request.text;
+    document.getElementById('resultDisplay').textContent = request.text;
+    processStateEl.classList.remove('loading');
     setProcessState('The response is ready.');
   } else if (request.action === 'setError') {
     document.getElementById('errorText').textContent = 'Error: ' + request.error;
     document.getElementById('errorMsg').style.display = 'block';
-    setProcessState('Fehler aufgetreten');
+    processStateEl.classList.remove('loading');
+    setProcessState('An error occurred.');
   } else if (request.action === 'setLoading') {
+    processStateEl.classList.add('loading');
     setProcessState(request.text);
-    const loading = document.createTextNode(request.text);
-    const display = document.getElementById('resultDisplay');
-    display.textContent = '';
-    display.appendChild(loading);
+    document.getElementById('resultDisplay').textContent = '';
   }
 });
 
-setProcessState('Processing selection... waiting for AI response.');
+processStateEl.classList.add('loading');
+setProcessState('Processing selection… waiting for AI response.');
 
 function stripMarkdown(markdown) {
   let text = markdown;
@@ -52,27 +52,17 @@ function stripMarkdown(markdown) {
 
 const modal = document.getElementById('modal');
 const modalText = document.getElementById('modalText');
-const modalCloseBtn = document.getElementById('modalCloseBtn');
 
 function showModal(message) {
   if (modal && modalText) {
     modalText.textContent = message;
     modal.style.display = 'block';
-    // Auto-hide after 5 seconds
-    setTimeout(() => {
-      hideModal();
-    }, 5000);
+    setTimeout(hideModal, 3000);
   }
 }
 
 function hideModal() {
-  if (modal) {
-    modal.style.display = 'none';
-  }
-}
-
-if (modalCloseBtn) {
-  modalCloseBtn.addEventListener('click', hideModal);
+  if (modal) modal.style.display = 'none';
 }
 
 document.getElementById('copyBtn').addEventListener('click', () => {
@@ -102,3 +92,4 @@ document.getElementById('copyCloseBtn').addEventListener('click', () => {
 document.getElementById('openSettingsBtn').addEventListener('click', () => {
   chrome.runtime.openOptionsPage();
 });
+

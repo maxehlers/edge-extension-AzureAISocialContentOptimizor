@@ -1,4 +1,4 @@
-const DEFAULT_PROMPT = 'Du bist der Social Media Manager von Microsoft. Bitte formuliere dies so um, dass es zu mehr Engagement und Klicks für die Zielgruppe "Entscheidungsträger" führt. Halte Dich kurz, prägnant und bleibe in der bestehenden Sprache. Füge ggfs. passende Emojis hinzu.';
+const DEFAULT_PROMPT = 'Du bist der Social Media Manager von Microsoft. Bitte formuliere dies so um, dass es zu mehr Engagement und Klicks für die Zielgruppe "Entscheidungsträger" führt. Halte Dich kurz, prägnant und bleibe in der bestehenden Sprache. Bitte gebe mir AUSSCHLIEßLICH den generierten Text zurück und keine Argumente, warum Du etwas gemacht hast. Füge ggfs. passende Emojis hinzu.';
 
 async function getPrompt() {
   return new Promise((resolve) => {
@@ -97,7 +97,7 @@ async function callAzureAI(text) {
     },
     body: JSON.stringify({
       messages: [
-        { role: 'user', content: `${prompt}\n\n${text}` }
+        { role: 'user', content: `Use these instructions:\n${prompt}\n\n This is the social media post to be transformed:\n ${text}` }
       ],
       max_tokens: 500
     })
@@ -120,29 +120,6 @@ async function callAzureAI(text) {
   const markdownResult = data.choices?.[0]?.message?.content || '';
   return stripMarkdown(markdownResult);
 
-}
-
-function checkEditableSelection(tabId) {
-  return new Promise((resolve) => {
-    // Very short timeout - if content script doesn't respond quickly, assume not editable
-    const timeout = setTimeout(() => {
-      resolve(false);
-    }, 200); // 200ms timeout
-
-    try {
-      chrome.tabs.sendMessage(tabId, { action: 'checkEditable' }, (response) => {
-        clearTimeout(timeout);
-        if (chrome.runtime.lastError || !response) {
-          resolve(false);
-        } else {
-          resolve(response.isEditable === true);
-        }
-      });
-    } catch (error) {
-      clearTimeout(timeout);
-      resolve(false);
-    }
-  });
 }
 
 async function ensureContentScript(tabId) {
@@ -174,70 +151,58 @@ async function ensureContentScript(tabId) {
 }
 
 function safeSendMessage(tabId, message) {
-  try {
-    // Fire-and-forget: no callback to avoid "message port closed" warnings
-    chrome.tabs.sendMessage(tabId, message);
-  } catch (error) {
-    // If tab cannot receive, fail silently to avoid breakage
-    console.warn('Error sending message:', error);
-  }
+  if (!tabId) return;
+  chrome.tabs.sendMessage(tabId, message, (response) => {
+    if (chrome.runtime.lastError) {
+      const messageText = chrome.runtime.lastError.message || '';
+      if (
+        !messageText.includes('The message port closed before a response was received') &&
+        !messageText.includes('Receiving end does not exist')
+      ) {
+        console.warn('safeSendMessage failed:', messageText);
+      }
+    }
+  });
 }
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
-  if (!info.selectionText) {
-    console.warn('No text selected for AI optimization.');
+  if (!info.selectionText || !info.selectionText.trim()) {
+    console.warn('No non-empty text selected for AI optimization.');
     return;
   }
 
   if (!tab?.id) return;
 
-  const isEditable = await checkEditableSelection(tab.id);
+  chrome.windows.create(
+    {
+      url: chrome.runtime.getURL('result.html'),
+      type: 'popup',
+      width: 520,
+      height: 720,
+      focused: true
+    },
+    (newWindow) => {
+      const resultTab = newWindow?.tabs?.[0];
+      if (!resultTab?.id) {
+        return;
+      }
 
-  if (isEditable) {
-    try {
-      const loadingId = Date.now().toString();
-
-      safeSendMessage(tab.id, {
-        action: 'showLoading',
-        loadingId: loadingId,
-        text: 'Loading...',
-        selectedText: info.selectionText
-      });
-
-      const optimizedText = await callAzureAI(info.selectionText);
-
-      safeSendMessage(tab.id, {
-        action: 'replaceResult',
-        loadingId: loadingId,
-        text: optimizedText
-      });
-    } catch (error) {
-      console.error('Error optimizing text:', error);
-      const errorId = Date.now().toString();
-      safeSendMessage(tab.id, {
-        action: 'showLoading',
-        loadingId: errorId,
-        text: 'Error: ' + error.message
-      });
-    }
-  } else {
-    chrome.tabs.create({ url: chrome.runtime.getURL('result.html') }, (newTab) => {
-      chrome.tabs.onUpdated.addListener(function listener(tabId, changeInfo) {
-        if (tabId === newTab.id && changeInfo.status === 'complete') {
-          chrome.tabs.sendMessage(tabId, { action: 'setLoading', text: 'Processing your text with AI...' });
+      chrome.tabs.onUpdated.addListener(function listener(resultTabId, changeInfo) {
+        if (resultTabId === resultTab.id && changeInfo.status === 'complete') {
+          chrome.tabs.sendMessage(resultTabId, { action: 'setLoading', text: 'Processing your text with AI...' });
           chrome.tabs.onUpdated.removeListener(listener);
 
           (async () => {
             try {
               const optimizedText = await callAzureAI(info.selectionText);
-              chrome.tabs.sendMessage(tabId, { action: 'setResult', text: optimizedText });
+              chrome.tabs.sendMessage(resultTabId, { action: 'setResult', text: optimizedText });
             } catch (error) {
-              chrome.tabs.sendMessage(tabId, { action: 'setError', error: error.message });
+              chrome.tabs.sendMessage(resultTabId, { action: 'setError', error: error.message });
             }
           })();
         }
       });
-    });
-  }
+    }
+  );
 });
-``
+

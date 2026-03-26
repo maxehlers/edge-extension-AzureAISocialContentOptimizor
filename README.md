@@ -1,133 +1,89 @@
 # Social Media AI Copy Optimizer
 
-A Microsoft Edge browser extension that uses Azure AI Foundry to optimize selected text for better social media engagement. Transform your content into more engaging, click-worthy copy with AI-powered suggestions.
+A Microsoft Edge browser extension that uses Azure AI Foundry to optimize selected text for better social media engagement. Select any text, right-click, and get AI-optimized copy in a clean popup window — ready to copy to your clipboard.
 
-## 🚀 Features
+## Features
 
-### Core Functionality
-- **Right-click Optimization**: Select any text on any website and right-click to optimize it with AI
-- **In-Place Replacement**: Selected text is immediately replaced with "Loading..." while AI processes in the background
-- **Visual Feedback**: Loading text shows processing status, then transforms to display the optimized result
-- **Universal Compatibility**: Works on any webpage content, whether editable or read-only
+- **Right-click optimization** — Select any text on any page and choose *📎 Optimize copy with AI* from the context menu
+- **Popup result window** — Shows a dedicated Fluent 2-styled popup with the AI-optimized result
+- **Copy to clipboard** — One-click copy or copy-and-close buttons
+- **Markdown stripping** — AI responses are automatically cleaned of all markdown formatting
+- **Customizable AI prompt** — Tailor the instructions to your audience, tone, and language
+- **Fluent 2 design** — Result and settings windows follow Microsoft's Fluent 2 / Reimagine design system
 
-### AI Integration
-- **Azure AI Foundry Support**: Integrates with Azure OpenAI Service for powerful language models
-- **Customizable Prompts**: Configure your own AI instructions for different optimization goals
-- **Multiple Model Support**: Works with any Azure OpenAI deployment (GPT-3.5, GPT-4, etc.)
+## Prerequisites
 
-### User Experience
-- **In-Place Processing**: No new tabs or popups - everything happens where you selected the text
-- **Visual Loading States**: Clear visual feedback with styled loading and result indicators
-- **Error Handling**: Comprehensive error messages displayed in place
-- **Instant Results**: Optimized text appears immediately when processing completes
+- Microsoft Edge (version 88 or later)
+- An **Azure AI Foundry** resource with a deployed language model (e.g. GPT-4o)
+- Your resource's **API Key**, **Endpoint URL**, **Deployment Name**, and **API Version**
 
-### Configuration
-- **Settings Page**: Easy-to-use interface for API configuration
-- **Secure Storage**: API keys stored securely using Chrome's sync storage
-- **Custom Prompts**: Tailor the AI behavior to your specific needs
+## Installation
 
-## 📋 Prerequisites
+1. Clone or download this repository
+2. Open Edge and navigate to `edge://extensions/`
+3. Enable **Developer Mode** (toggle in the top-right corner)
+4. Click **Load unpacked** and select the extension folder
+5. Open the extension settings and enter your Azure credentials (see below)
 
-### Required
-- **Microsoft Edge Browser** (version 88 or later)
-- **Azure AI Foundry Account** with an active Azure OpenAI resource
-- **API Access**: Valid API key, endpoint URL, and deployment name from Azure
+## Configuration
 
-### Azure Setup
-1. Create an Azure AI Foundry resource in the Azure portal
-2. Deploy a language model (GPT-3.5-turbo, GPT-4, etc.)
-3. Note down your:
-   - API Key
-   - Endpoint URL (e.g., `https://your-resource.openai.azure.com`)
-   - Deployment name
-   - API version (default: `2023-05-15`)
+Open Settings via the extension toolbar icon or the automatically opened settings page on first install.
 
-## 🛠 Installation
+| Field | Description | Where to find it |
+|---|---|---|
+| **API Key** | Your Azure OpenAI resource key | Azure Portal → your OpenAI resource → *Keys and Endpoint* |
+| **Endpoint** | Base URL of your resource | Azure Portal → *Keys and Endpoint*, e.g. `https://<resource>.openai.azure.com` |
+| **Deployment Name** | Name of your model deployment | [Azure AI Foundry](https://oai.azure.com) → Deployments |
+| **API Version** | REST API version | Use `2024-02-01` or later for GPT-4o. See [API reference](https://learn.microsoft.com/azure/ai-services/openai/reference) |
+| **AI Prompt** | System instructions prepended to your selected text | Customize freely — selected text is appended automatically |
 
-### From Source
-1. **Clone or Download** this repository
-2. **Open Edge** and navigate to `edge://extensions/`
-3. **Enable Developer Mode** (toggle in top-right corner)
-4. **Click "Load unpacked"** and select the extension folder
-5. **Configure Settings** (see Configuration section below)
+Settings are saved with a toast confirmation and stored securely in Edge's sync storage.
 
-### From Microsoft Edge Add-ons (Future)
-Once published, you can install directly from the Edge Add-ons store.
+## Usage
 
-## ⚙️ Configuration
+1. Select any text on a webpage
+2. Right-click → **📎 Optimize copy with AI**
+3. A popup window opens showing a loading spinner while the AI processes
+4. Once ready, click **Copy to Clipboard** or **Copy & Close**
 
-1. **Access Settings**: Click the extension icon in the toolbar and select "Settings"
-2. **Enter Azure Credentials**:
-   - **API Key**: Your Azure OpenAI API key
-   - **Endpoint**: Your Azure resource endpoint URL
-   - **Deployment Name**: The name of your model deployment
-   - **API Version**: Azure OpenAI API version (default: `2023-05-15`)
-3. **Customize Prompt**: Modify the AI instructions to match your optimization goals
-4. **Save Settings**: Click "Save Settings" to store your configuration
-
-## 📖 Usage
-
-### Basic Usage
-1. **Select Text**: Highlight any text on any webpage
-2. **Right-click**: Choose "📎Optimize copy with AI" from the context menu
-3. **Watch the Magic**: Selected text transforms to "Loading..." while AI processes
-4. **See Results**: Loading text is replaced with your optimized content
-
-### Advanced Usage
-- **Any Content Type**: Works on articles, social media posts, emails, documents, and more
-- **Custom Prompts**: Modify the AI prompt in settings for different content types (blog posts, tweets, LinkedIn updates, etc.)
-- **Visual Feedback**: Loading state shows yellow background, results show green background
-- **Error Handling**: If API fails, error message appears in place of selected text
-
-## 🔧 Technical Details
+## Technical Details
 
 ### Architecture
-- **Manifest V3**: Modern Chrome extension framework
-- **Service Worker**: Background processing for API calls
-- **Content Scripts**: DOM manipulation for text replacement
-- **Storage API**: Secure credential management
+
+| File | Role |
+|---|---|
+| `background.js` | Service worker — context menu, Azure AI API calls, popup window management |
+| `content.js` | Content script — ping responder for dynamic injection detection |
+| `result.html/js` | Popup result window UI |
+| `settings.html/js` | Configuration UI |
+| `popup.html` | Extension toolbar popup |
 
 ### Permissions
-- `contextMenus`: Right-click menu integration
-- `tabs`: Result tab creation and management
-- `storage`: Settings persistence
-- `activeTab`: Current tab interaction
-- `notifications`: User feedback
+
+| Permission | Purpose |
+|---|---|
+| `contextMenus` | Right-click menu entry |
+| `tabs` | Messaging with the result popup tab |
+| `storage` | Persisting settings and API credentials |
+| `activeTab` | Access to the currently active tab |
+| `scripting` | Dynamic content script injection as fallback |
+| `windows` | Creating the result popup window |
 
 ### API Integration
-- RESTful calls to Azure OpenAI Chat Completions API
-- Configurable API versions and endpoints
-- Error handling for network issues and API limits
 
-## 🎯 Use Cases
+Calls the Azure OpenAI Chat Completions REST API:
+```
+POST {endpoint}/openai/deployments/{deployment}/chat/completions?api-version={version}
+```
+The configured prompt and selected text are sent as a single user message. The response is stripped of all markdown formatting before display.
 
-### Social Media Management
-- **Twitter/X Posts**: Make tweets more engaging and clickable
-- **LinkedIn Updates**: Optimize professional content for better reach
-- **Facebook Posts**: Enhance community engagement
-- **Instagram Captions**: Create more compelling descriptions
+## Security & Privacy
 
-### Content Marketing
-- **Blog Headlines**: Improve click-through rates
-- **Email Subject Lines**: Boost open rates
-- **Ad Copy**: Create more effective marketing text
-- **Product Descriptions**: Make e-commerce content more persuasive
+- API credentials are stored in Edge's built-in encrypted sync storage (`chrome.storage.sync`)
+- Selected text is sent only to your own Azure OpenAI endpoint — no third-party services
+- No text is logged or persisted by the extension
+- All API calls are made directly from the browser over HTTPS
 
-### Business Communication
-- **Executive Summaries**: Make key points more impactful
-- **Meeting Agendas**: Improve clarity and engagement
-- **Internal Communications**: Enhance company-wide messaging
-
-## 🔒 Security & Privacy
-
-- **Local Processing**: All text processing happens locally in your browser
-- **Secure Storage**: API credentials stored using browser's encrypted storage
-- **No Data Retention**: Text is not stored or logged by the extension
-- **Azure Compliance**: Leverages Azure's enterprise-grade security
-
-## 🐛 Troubleshooting
-
-### Common Issues
 - **Context menu not appearing**: Ensure text is properly selected
 - **API errors**: Check your Azure credentials and endpoint configuration
 - **No response**: Verify your internet connection and Azure service status
