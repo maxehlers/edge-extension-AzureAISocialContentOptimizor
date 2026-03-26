@@ -175,6 +175,15 @@
       font-size: var(--font-size-200);
       z-index: 1000;
       animation: fadeIn .15s ease;
+      white-space: nowrap;
+      max-width: 90vw;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .toast.warning {
+      background: #FFF4CE;
+      color: #7A4F00;
+      border: 1px solid #F0D060;
     }
     @keyframes fadeIn {
       from { opacity: 0; transform: translateX(-50%) translateY(6px); }

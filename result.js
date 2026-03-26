@@ -18,14 +18,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     processStateEl.style.display = 'none';
     loadOptimizations(request.text);
   } else if (request.action === 'setError') {
-    document.getElementById('errorText').textContent = 'Error: ' + request.error;
-    document.getElementById('errorMsg').style.display = 'block';
     processStateEl.classList.remove('loading');
+    processStateEl.style.display = 'none';
+    showWarningToast('⚠\uFE0F ' + request.error);
     setProcessState('An error occurred.');
   } else if (request.action === 'setLoading') {
     processStateEl.classList.add('loading');
     setProcessState(request.text);
     document.getElementById('resultDisplay').textContent = '';
+  } else if (request.action === 'setTitle') {
+    const titleEl = document.querySelector('.app-title');
+    if (titleEl) titleEl.textContent = request.title;
+    document.title = request.title;
   }
 });
 
@@ -157,7 +161,7 @@ async function applyOptimization(instruction) {
     processStateEl.classList.remove('loading');
     setProcessState('An error occurred.');
     toggleOptimizationLoading(false);
-    showModal(`Optimization failed: ${error.message}`);
+    showWarningToast('⚠\uFE0F ' + error.message);
   } finally {
     setOptimizationButtonsDisabled(false);
   }
@@ -189,9 +193,19 @@ const modalText = document.getElementById('modalText');
 
 function showModal(message) {
   if (modal && modalText) {
+    modal.classList.remove('warning');
     modalText.textContent = message;
     modal.style.display = 'block';
     setTimeout(hideModal, 3000);
+  }
+}
+
+function showWarningToast(message) {
+  if (modal && modalText) {
+    modal.classList.add('warning');
+    modalText.textContent = message;
+    modal.style.display = 'block';
+    setTimeout(hideModal, 5000);
   }
 }
 

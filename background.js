@@ -1,4 +1,4 @@
-const DEFAULT_PROMPT = 'Du bist der Social Media Manager von Microsoft. Bitte formuliere dies so um, dass es zu mehr Engagement und Klicks für die Zielgruppe "Entscheidungsträger" führt. Halte Dich kurz, prägnant und bleibe in der bestehenden Sprache. Bitte gebe mir AUSSCHLIEßLICH den generierten Text zurück und keine Argumente, warum Du etwas gemacht hast. Füge ggfs. passende Emojis hinzu.';
+﻿const DEFAULT_PROMPT = 'Du bist der Social Media Manager von Microsoft. Bitte formuliere dies so um, dass es zu mehr Engagement und Klicks für die Zielgruppe "Entscheidungsträger" führt. Halte Dich kurz, prägnant und bleibe in der bestehenden Sprache. Bitte gebe mir AUSSCHLIEßLICH den generierten Text zurück und keine Argumente, warum Du etwas gemacht hast. Füge ggfs. passende Emojis hinzu.';
 
 async function getPrompt() {
   return new Promise((resolve) => {
@@ -15,8 +15,11 @@ function createContextMenu() {
       id: 'optimize-copy',
       title: '📎Optimize copy with AI',
       contexts: ['selection', 'editable']
-    });
-  });
+    });    chrome.contextMenus.create({
+      id: 'create-website-copy',
+      title: '\uD83C\uDF10Create Social Media Copy for this Website',
+      contexts: ['all']
+    });  });
 }
 
 chrome.runtime.onInstalled.addListener(() => {
@@ -99,7 +102,7 @@ async function callAzureAI(text) {
       messages: [
         { role: 'user', content: `Use these instructions:\n${prompt}\n\n This is the social media post to be transformed:\n ${text}` }
       ],
-      max_tokens: 500
+      max_completion_tokens: 800
     })
   });
 
@@ -118,6 +121,10 @@ async function callAzureAI(text) {
 
   const data = await response.json();
   const markdownResult = data.choices?.[0]?.message?.content || '';
+  if (!markdownResult.trim()) {
+    const reason = data.choices?.[0]?.finish_reason || 'unknown';
+    throw new Error(`The API returned an empty response (finish_reason: ${reason}). Try a different API version or check your deployment.`);
+  }
   return stripMarkdown(markdownResult);
 
 }
@@ -174,7 +181,7 @@ async function getOptimizationSuggestions(currentText) {
       messages: [
         { role: 'user', content: `${prompt}\n\nTEXT:\n${currentText}` }
       ],
-      max_tokens: 180
+      max_completion_tokens: 800
     })
   });
 
@@ -216,7 +223,7 @@ async function applyOptimizationInstruction(currentText, instruction) {
       messages: [
         { role: 'user', content: `${prompt}\n\nTEXT:\n${currentText}` }
       ],
-      max_tokens: 500
+      max_completion_tokens: 800
     })
   });
 
@@ -226,7 +233,135 @@ async function applyOptimizationInstruction(currentText, instruction) {
 
   const data = await response.json();
   const markdownResult = data.choices?.[0]?.message?.content || '';
+  if (!markdownResult.trim()) {
+    const reason = data.choices?.[0]?.finish_reason || 'unknown';
+    throw new Error(`The API returned an empty response (finish_reason: ${reason}). Try a different API version or check your deployment.`);
+  }
   return stripMarkdown(markdownResult);
+}
+
+async function callAzureAIForWebsite(url, title, selectedText, pageContent) {
+  const { apiKey, endpoint, deployment, apiVersion } = await chrome.storage.sync.get(['apiKey', 'endpoint', 'deployment', 'apiVersion']);
+  if (!apiKey || !endpoint || !deployment) {
+    throw new Error('API settings not configured');
+  }
+
+  const version = apiVersion || '2023-05-15';
+  const apiUrl = `${endpoint}/openai/deployments/${deployment}/chat/completions?api-version=${version}`;
+
+  const quoteSection = selectedText && selectedText.trim()
+    ? `\n\nInclude the following selected text as a quote in the post:\n"${selectedText.trim()}"`
+    : '';
+
+  const contentSection = pageContent && pageContent.trim()
+    ? `\n\nPage content (use this as source material):\n${pageContent.trim().slice(0, 4000)}`
+    : '';
+
+  const prompt = [
+    'You are a Social Media Manager at Microsoft.',
+    'Write a short, engaging social media post to promote the following webpage.',
+    '',
+    'Requirements:',
+    '- Write in Microsoft\'s tone of voice: professional, empowering, and human.',
+    '- Keep it short and punchy (max 4 sentences).',
+    '- Include a clear call to action (e.g. "Read more", "Check it out", "Learn more").',
+    '- Add relevant emojis.',
+    '- Always include a link to the webpage.',
+    '- Add relevant hashtags.',
+    '- Leave an empty line between paragraphs.',
+    '- Match the language of the page title.',
+    '- Return ONLY the final post text, no explanations.' + quoteSection,
+    '',
+    `Page title: ${title || 'Unknown'}`,
+    `Page URL: ${url || ''}` + contentSection
+  ].join('\n');
+
+  const response = await fetch(apiUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'api-key': apiKey
+    },
+    body: JSON.stringify({
+      messages: [
+        { role: 'user', content: prompt }
+      ],
+      max_completion_tokens: 1200
+    })
+  });
+
+  if (!response.ok) {
+    let errorText = `API call failed: ${response.status}`;
+    try {
+      const errJson = await response.json();
+      if (errJson.error) {
+        errorText += ` - ${errJson.error.message || JSON.stringify(errJson.error)}`;
+      }
+    } catch (err) { /* ignore */ }
+    throw new Error(errorText);
+  }
+
+  const data = await response.json();
+  const markdownResult = data.choices?.[0]?.message?.content || '';
+  if (!markdownResult.trim()) {
+    const reason = data.choices?.[0]?.finish_reason || 'unknown';
+    throw new Error(`The API returned an empty response (finish_reason: ${reason}). Try a different API version or check your deployment.`);
+  }
+  return stripMarkdown(markdownResult);
+}
+
+async function generateTitle(resultText) {
+  try {
+    const { apiKey, endpoint, deployment, apiVersion } = await chrome.storage.sync.get(['apiKey', 'endpoint', 'deployment', 'apiVersion']);
+    if (!apiKey || !endpoint || !deployment) return null;
+
+    const version = apiVersion || '2023-05-15';
+    const url = `${endpoint}/openai/deployments/${deployment}/chat/completions?api-version=${version}`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'api-key': apiKey },
+      body: JSON.stringify({
+        messages: [{
+          role: 'user',
+          content: `Write a short headline (3-5 words) that summarizes the purpose of this social media post. Return ONLY the headline, no punctuation at the end, no quotes.\n\nPOST:\n${resultText}`
+        }],
+        max_completion_tokens: 500
+      })
+    });
+
+    if (!response.ok) return null;
+    const data = await response.json();
+    const raw = data.choices?.[0]?.message?.content || '';
+    return raw.trim().replace(/[\.!?"']$/g, '') || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function openResultPopup() {
+  return new Promise((resolve) => {
+    chrome.windows.create(
+      {
+        url: chrome.runtime.getURL('result.html'),
+        type: 'popup',
+        width: 520,
+        height: 720,
+        focused: true
+      },
+      (newWindow) => {
+        const resultTab = newWindow?.tabs?.[0];
+        if (!resultTab?.id) { resolve(null); return; }
+
+        chrome.tabs.onUpdated.addListener(function listener(resultTabId, changeInfo) {
+          if (resultTabId === resultTab.id && changeInfo.status === 'complete') {
+            chrome.tabs.onUpdated.removeListener(listener);
+            resolve(resultTab.id);
+          }
+        });
+      }
+    );
+  });
 }
 
 async function ensureContentScript(tabId) {
@@ -273,44 +408,64 @@ function safeSendMessage(tabId, message) {
 }
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
-  if (!info.selectionText || !info.selectionText.trim()) {
-    console.warn('No non-empty text selected for AI optimization.');
+  if (!tab?.id) return;
+
+  if (info.menuItemId === 'create-website-copy') {
+    const resultTabId = await openResultPopup();
+    if (!resultTabId) return;
+
+    chrome.tabs.sendMessage(resultTabId, {
+      action: 'setLoading',
+      text: 'Generating social media copy for this page\u2026'
+    });
+
+    try {
+      let pageContent = '';
+      try {
+        const [{ result }] = await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: () => document.body?.innerText || ''
+        });
+        pageContent = result || '';
+      } catch (e) {
+        console.warn('Could not extract page content:', e);
+      }
+
+      const text = await callAzureAIForWebsite(
+        tab.url || '',
+        tab.title || '',
+        info.selectionText || '',
+        pageContent
+      );
+      const title = await generateTitle(text);
+      if (title) chrome.tabs.sendMessage(resultTabId, { action: 'setTitle', title });
+      chrome.tabs.sendMessage(resultTabId, { action: 'setResult', text });
+    } catch (error) {
+      chrome.tabs.sendMessage(resultTabId, { action: 'setError', error: error.message });
+    }
     return;
   }
 
-  if (!tab?.id) return;
-
-  chrome.windows.create(
-    {
-      url: chrome.runtime.getURL('result.html'),
-      type: 'popup',
-      width: 520,
-      height: 720,
-      focused: true
-    },
-    (newWindow) => {
-      const resultTab = newWindow?.tabs?.[0];
-      if (!resultTab?.id) {
-        return;
-      }
-
-      chrome.tabs.onUpdated.addListener(function listener(resultTabId, changeInfo) {
-        if (resultTabId === resultTab.id && changeInfo.status === 'complete') {
-          chrome.tabs.sendMessage(resultTabId, { action: 'setLoading', text: 'Processing your text with AI...' });
-          chrome.tabs.onUpdated.removeListener(listener);
-
-          (async () => {
-            try {
-              const optimizedText = await callAzureAI(info.selectionText);
-              chrome.tabs.sendMessage(resultTabId, { action: 'setResult', text: optimizedText });
-            } catch (error) {
-              chrome.tabs.sendMessage(resultTabId, { action: 'setError', error: error.message });
-            }
-          })();
-        }
-      });
+  if (info.menuItemId === 'optimize-copy') {
+    if (!info.selectionText || !info.selectionText.trim()) {
+      console.warn('No non-empty text selected for AI optimization.');
+      return;
     }
-  );
+
+    const resultTabId = await openResultPopup();
+    if (!resultTabId) return;
+
+    chrome.tabs.sendMessage(resultTabId, { action: 'setLoading', text: 'Processing your text with AI...' });
+
+    try {
+      const optimizedText = await callAzureAI(info.selectionText);
+      const title = await generateTitle(optimizedText);
+      if (title) chrome.tabs.sendMessage(resultTabId, { action: 'setTitle', title });
+      chrome.tabs.sendMessage(resultTabId, { action: 'setResult', text: optimizedText });
+    } catch (error) {
+      chrome.tabs.sendMessage(resultTabId, { action: 'setError', error: error.message });
+    }
+  }
 });
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
