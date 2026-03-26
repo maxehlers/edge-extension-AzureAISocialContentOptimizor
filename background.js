@@ -13,10 +13,51 @@ const DEFAULT_PROMPT = [
     '- Return ONLY the final post text, no explanations.'
   ].join('\n');
 
+const DEFAULT_WEBSITE_PROMPT = [
+  'You are a Social Media Manager at Microsoft.',
+  'Write a short, engaging social media post to promote the following webpage.',
+  '',
+  'Requirements:',
+  '- Write in Microsoft\'s tone of voice: professional, empowering, and human.',
+  '- Keep it short and punchy (max 4 sentences).',
+  '- Include a clear call to action (e.g. "Read more", "Check it out", "Learn more").',
+  '- Add relevant emojis.',
+  '- Always include a link to the webpage.',
+  '- Add relevant hashtags.',
+  '- Leave an empty line between paragraphs.',
+  '- Match the language of the page title.',
+  '- Return ONLY the final post text, no explanations.'
+].join('\n');
+
+const DEFAULT_IMAGE_PROMPT = [
+  'Create a square 1024x1024 promotional social media image in Microsoft Fluent 2 design style.',
+  'Background: modern abstract gradient using Microsoft brand colors — deep #0078D4 blue through soft white or light gray.',
+  'Display the following headline prominently in the center in large, bold white sans-serif lettering: "{headline}"',
+  'Add subtle geometric shapes or flowing lines typical of Microsoft design language.',
+  'Include a Microsoft blue (#0078D4) gradient accent bar along the bottom edge.',
+  'Professional, clean, modern corporate technology aesthetic.'
+].join('\n');
+
 async function getPrompt() {
   return new Promise((resolve) => {
     chrome.storage.sync.get(['initialPrompt'], (result) => {
       resolve(result.initialPrompt ? result.initialPrompt.trim() : DEFAULT_PROMPT);
+    });
+  });
+}
+
+async function getWebsitePrompt() {
+  return new Promise((resolve) => {
+    chrome.storage.sync.get(['websitePrompt'], (result) => {
+      resolve(result.websitePrompt ? result.websitePrompt.trim() : DEFAULT_WEBSITE_PROMPT);
+    });
+  });
+}
+
+async function getImagePrompt() {
+  return new Promise((resolve) => {
+    chrome.storage.sync.get(['imagePrompt'], (result) => {
+      resolve(result.imagePrompt ? result.imagePrompt.trim() : DEFAULT_IMAGE_PROMPT);
     });
   });
 }
@@ -262,6 +303,8 @@ async function callAzureAIForWebsite(url, title, selectedText, pageContent) {
   const version = apiVersion || '2023-05-15';
   const apiUrl = `${endpoint}/openai/deployments/${deployment}/chat/completions?api-version=${version}`;
 
+  const websiteInstructions = await getWebsitePrompt();
+
   const quoteSection = selectedText && selectedText.trim()
     ? `\n\nInclude the following selected text as a quote in the post:\n"${selectedText.trim()}"`
     : '';
@@ -271,19 +314,7 @@ async function callAzureAIForWebsite(url, title, selectedText, pageContent) {
     : '';
 
   const prompt = [
-    'You are a Social Media Manager at Microsoft.',
-    'Write a short, engaging social media post to promote the following webpage.',
-    '',
-    'Requirements:',
-    '- Write in Microsoft\'s tone of voice: professional, empowering, and human.',
-    '- Keep it short and punchy (max 4 sentences).',
-    '- Include a clear call to action (e.g. "Read more", "Check it out", "Learn more").',
-    '- Add relevant emojis.',
-    '- Always include a link to the webpage.',
-    '- Add relevant hashtags.',
-    '- Leave an empty line between paragraphs.',
-    '- Match the language of the page title.',
-    '- Return ONLY the final post text, no explanations.' + quoteSection,
+    websiteInstructions + quoteSection,
     '',
     `Page title: ${title || 'Unknown'}`,
     `Page URL: ${url || ''}` + contentSection
@@ -323,26 +354,13 @@ async function callAzureAIForWebsite(url, title, selectedText, pageContent) {
   return stripMarkdown(markdownResult);
 }
 
-function buildImagePrompt(headline, hasBackground) {
+async function buildImagePrompt(headline, hasBackground) {
+  const template = await getImagePrompt();
+  const base = template.replace(/\{headline\}/g, headline);
   if (hasBackground) {
-    return [
-      'Create a square 1080x1080 promotional social media image in Microsoft Fluent 2 design style.',
-      'Apply a semi-transparent dark overlay to soften the provided background image.',
-      'Display the following text prominently in the center in large, bold white sans-serif lettering (Segoe UI style):',
-      `"${headline}"`,
-      'Add a Microsoft blue (#0078D4) gradient accent bar along the bottom edge.',
-      "Keep the design professional, modern, and aligned with Microsoft's visual identity."
-    ].join('\n');
+    return 'Apply a semi-transparent dark overlay to soften the provided background image.\n' + base;
   }
-  return [
-    'Create a square 1080x1080 promotional social media image in Microsoft Fluent 2 design style.',
-    'Background: modern abstract gradient using Microsoft brand colors — deep #0078D4 blue through soft white or light gray.',
-    'Display the following text prominently in the center in large, bold white sans-serif lettering:',
-    `"${headline}"`,
-    'Add subtle geometric shapes or flowing lines typical of Microsoft design language.',
-    'Include a Microsoft blue (#0078D4) gradient accent bar along the bottom edge.',
-    'Professional, clean, modern corporate technology aesthetic.'
-  ].join('\n');
+  return base;
 }
 
 async function generatePromotionalImage(headline, ogImageB64) {
@@ -364,7 +382,7 @@ async function generatePromotionalImage(headline, ogImageB64) {
         const editsUrl = `${base}/openai/v1/images/edits`;
         const formData = new FormData();
         formData.append('image', bgBlob, 'background.png');
-        formData.append('prompt', buildImagePrompt(headline, true));
+        formData.append('prompt', await buildImagePrompt(headline, true));
         formData.append('model', imageDeployment);
         formData.append('size', '1024x1024');
         const editResponse = await fetch(editsUrl, {
@@ -391,7 +409,7 @@ async function generatePromotionalImage(headline, ogImageB64) {
     },
     body: JSON.stringify({
       model: imageDeployment,
-      prompt: buildImagePrompt(headline, false),
+      prompt: await buildImagePrompt(headline, false),
       size: '1024x1024',
       quality: 'medium',
       output_format: 'png',

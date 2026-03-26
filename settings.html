@@ -107,7 +107,7 @@
     }
 
     textarea { resize: vertical; line-height: 1.5; }
-    #initialPrompt { min-height: 165px; }
+    #initialPrompt, #websitePrompt, #imagePrompt { min-height: 165px; }
 
     .divider {
       border: none;
@@ -116,10 +116,16 @@
     }
 
     .section-heading {
-      font-size: var(--font-size-200);
+      font-size: 16px;
       font-weight: var(--font-weight-semibold);
       color: var(--color-neutral-fg);
-      margin-bottom: var(--spacing-m);
+      margin-bottom: var(--spacing-xs);
+    }
+
+    .section-subtext {
+      font-size: var(--font-size-100);
+      color: var(--color-neutral-fg-secondary);
+      margin-bottom: var(--spacing-l);
     }
 
     .btn {
@@ -195,45 +201,68 @@
   <div class="card">
     <form id="settingsForm">
 
+      <!-- ── Connection ───────────────────────────────────────────── -->
+      <p class="section-heading">Connection</p>
+      <p class="section-subtext">Shared by all AI functions. Find these values in the <a href="https://portal.azure.com" target="_blank">Azure Portal</a> under your Azure OpenAI resource.</p>
+
       <div class="field">
         <label for="apiKey">API Key</label>
-        <span class="field-hint">Your Azure OpenAI resource key. Find it in the <a href="https://portal.azure.com" target="_blank">Azure Portal</a> under your Azure OpenAI resource &rarr; <em>Keys and Endpoint</em>.</span>
+        <span class="field-hint">Your Azure OpenAI resource key &rarr; <em>Keys and Endpoint</em>.</span>
         <input type="password" id="apiKey" placeholder="••••••••••••••••" required>
       </div>
 
       <div class="field">
         <label for="endpoint">Endpoint</label>
-        <span class="field-hint">The base URL of your Azure OpenAI resource. Find it in the Azure Portal under <em>Keys and Endpoint</em>. Format: <code>https://&lt;your-resource&gt;.openai.azure.com</code></span>
+        <span class="field-hint">Base URL of your resource. Format: <code>https://&lt;your-resource&gt;.openai.azure.com</code></span>
         <input type="url" id="endpoint" placeholder="https://" required>
       </div>
 
+      <hr class="divider">
+
+      <!-- ── Text Generation ──────────────────────────────────────── -->
+      <p class="section-heading">Text Generation</p>
+      <p class="section-subtext">Used for both "Rephrase with AI" and "Create Website Copy". Deploy a GPT-4o model in <a href="https://oai.azure.com" target="_blank">Azure AI Foundry</a>.</p>
+
       <div class="field">
         <label for="deployment">Deployment Name</label>
-        <span class="field-hint">The name you gave your model deployment in <a href="https://oai.azure.com" target="_blank">Azure AI Foundry</a> (e.g. <code>gpt-4o</code>). Not the model name — the deployment name.</span>
+        <span class="field-hint">The name of your text model deployment (e.g. <code>gpt-4o</code>). Not the model name — the deployment name.</span>
         <input type="text" id="deployment" placeholder="gpt-4o" required>
       </div>
 
       <div class="field">
         <label for="apiVersion">API Version</label>
-        <span class="field-hint">The Azure OpenAI REST API version. Use <code>2024-02-01</code> or later for GPT-4o deployments. See <a href="https://learn.microsoft.com/azure/ai-services/openai/reference" target="_blank">API reference</a> for available versions.</span>
+        <span class="field-hint">Use <code>2024-02-01</code> or later for GPT-4o. See <a href="https://learn.microsoft.com/azure/ai-services/openai/reference" target="_blank">API reference</a>.</span>
         <input type="text" id="apiVersion" value="2023-05-15" required>
       </div>
 
-      <hr class="divider">
-      <p class="section-heading">Image Generation</p>
+      <div class="field">
+        <label for="initialPrompt">Rephrase Prompt</label>
+        <span class="field-hint">Instructions for the <strong>Rephrase with AI</strong> context menu action. The selected text is appended automatically.</span>
+        <textarea id="initialPrompt" required></textarea>
+      </div>
 
       <div class="field">
-        <label for="imageDeployment">Image Deployment Name</label>
-        <span class="field-hint">The name of your <code>gpt-image-1</code> deployment in <a href="https://oai.azure.com" target="_blank">Azure AI Foundry</a>. Uses the same API Key and Endpoint as above. Leave blank to disable image generation.</span>
-        <input type="text" id="imageDeployment" placeholder="gpt-image-1">
+        <label for="websitePrompt">Website Copy Prompt</label>
+        <span class="field-hint">Instructions for the <strong>Create Social Media Copy for this Website</strong> action. Page title, URL, and content are appended automatically. Use <code>{headline}</code> if you want to reference the selected quote.</span>
+        <textarea id="websitePrompt"></textarea>
       </div>
 
       <hr class="divider">
 
+      <!-- ── Image Generation ─────────────────────────────────────── -->
+      <p class="section-heading">Image Generation</p>
+      <p class="section-subtext">Uses the same API Key and Endpoint as above. Deploy a <code>gpt-image-1</code> model in <a href="https://oai.azure.com" target="_blank">Azure AI Foundry</a>. Leave Deployment Name blank to hide the Create Image button.</p>
+
       <div class="field">
-        <label for="initialPrompt">AI Prompt</label>
-        <span class="field-hint">System instructions sent to the model before your selected text. Customize tone, language, audience, and output format here. The selected text will be appended automatically.</span>
-        <textarea id="initialPrompt" required>Du bist der Social Media Manager von Microsoft. Bitte formuliere dies so um, dass es zu mehr Engagement und Klicks für die Zielgruppe "Entscheidungsträger" führt. Halte Dich kurz, prägnant und bleibe in der bestehenden Sprache. Füge ggfs. passende Emojis hinzu.</textarea>
+        <label for="imageDeployment">Image Deployment Name</label>
+        <span class="field-hint">The name of your <code>gpt-image-1</code> deployment.</span>
+        <input type="text" id="imageDeployment" placeholder="gpt-image-1">
+      </div>
+
+      <div class="field">
+        <label for="imagePrompt">Image Prompt</label>
+        <span class="field-hint">Instructions for the promotional image. Use <code>{headline}</code> where you want the article headline or selected text to appear.</span>
+        <textarea id="imagePrompt"></textarea>
       </div>
 
       <button type="submit" class="btn btn-primary">Save Settings</button>

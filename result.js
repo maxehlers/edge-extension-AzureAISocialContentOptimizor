@@ -17,6 +17,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     document.getElementById('resultDisplay').textContent = request.text;
     processStateEl.classList.remove('loading');
     processStateEl.style.display = 'none';
+    const copyBtn = document.getElementById('copyBtn');
+    if (copyBtn) copyBtn.style.display = '';
     loadOptimizations(request.text);
     if (request.pageUrl) {
       imageHeadline = request.imageHeadline || '';
@@ -229,20 +231,6 @@ document.getElementById('copyBtn').addEventListener('click', () => {
   });
 });
 
-document.getElementById('copyCloseBtn').addEventListener('click', () => {
-  const plainText = stripMarkdown(originalText);
-  navigator.clipboard.writeText(plainText).then(() => {
-    showModal('Copied to clipboard! Closing tab...');
-    // Close the tab after a brief delay to show the modal
-    setTimeout(() => {
-      window.close();
-    }, 1000);
-  }).catch((err) => {
-    console.error('Copy failed:', err);
-    showModal('Copy failed: ' + err.message);
-  });
-});
-
 document.getElementById('openSettingsBtn').addEventListener('click', () => {
   chrome.runtime.openOptionsPage();
 });
@@ -269,8 +257,8 @@ async function createImage() {
     if (generatedImg) generatedImg.src = response.imageDataUrl;
     if (imageLoadingEl) imageLoadingEl.classList.remove('active');
     if (imagePreviewWrap) imagePreviewWrap.style.display = 'block';
-    const textSpan = document.getElementById('createImageBtnText');
-    if (textSpan) textSpan.textContent = 'Regenerate Image';
+    const createBtn = document.getElementById('createImageBtn');
+    if (createBtn) createBtn.style.display = 'none';
   } catch (error) {
     if (imageLoadingEl) imageLoadingEl.classList.remove('active');
     if (imageSection) imageSection.style.display = 'none';
@@ -281,6 +269,8 @@ async function createImage() {
 }
 
 document.getElementById('createImageBtn')?.addEventListener('click', createImage);
+
+document.getElementById('regenerateImageBtn')?.addEventListener('click', createImage);
 
 document.getElementById('downloadImageBtn')?.addEventListener('click', () => {
   const img = document.getElementById('generatedImage');

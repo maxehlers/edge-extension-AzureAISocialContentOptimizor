@@ -34,6 +34,11 @@
       background: var(--color-neutral-bg);
       padding: 24px;
     }
+    h2 {
+      font-size: var(--font-size-200);
+      font-weight: var(--font-weight-semibold);
+      margin-bottom: 8px;
+    }
     .app-header {
       display: flex; align-items: center; gap: 12px; margin-bottom: 24px;
     }
@@ -65,14 +70,41 @@
       white-space: pre-wrap;
       line-height: 1.6;
       margin-bottom: 16px;
+      position: relative;
     }
-    .actions { display: flex; gap: 8px; flex-wrap: wrap; }
-    .optimization-section {
+    .result-card-wrap {
+      position: relative;
+      margin-bottom: 16px;
+    }
+    .btn-copy-icon {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: var(--color-neutral-surface);
+      border: 1px solid var(--color-neutral-stroke);
+      border-radius: var(--radius-small);
+      padding: 5px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--color-brand);
+      transition: background .1s, border-color .1s;
+    }
+    .btn-copy-icon:hover {
+      background: #F0F6FC;
+      border-color: var(--color-brand);
+    }
+    .btn-copy-icon svg { display: block; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
       margin-bottom: 16px;
     }
     .optimization-title {
-      font-size: var(--font-size-200);
+      font-size: var(--font-size-100);
       font-weight: var(--font-weight-semibold);
+      color: var(--color-neutral-fg-secondary);
+      text-transform: uppercase;
+      letter-spacing: .04em;
       margin-bottom: 8px;
     }
     .optimization-cards {
@@ -243,7 +275,15 @@
   </header>
 
   <div id="processState" class="status-bar loading">Processing selection&hellip; waiting for AI response.</div>
-  <div id="resultDisplay" class="result-card"></div>
+
+  <div class="result-card-wrap">
+    <div id="resultDisplay" class="result-card"></div>
+    <button id="copyBtn" class="btn-copy-icon" title="Copy to clipboard" style="display:none;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z" fill="currentColor"/>
+      </svg>
+    </button>
+  </div>
 
   <section id="optimizationSection" class="optimization-section" style="display:none;">
     <h2 class="optimization-title">Try another optimization</h2>
@@ -251,7 +291,7 @@
     <div id="optimizationCards" class="optimization-cards"></div>
   </section>
 
-  <section id="imageSection" class="image-section" style="display:none;">
+  <section id="imageSection" class="image-section">
     <h2 class="image-section-title">Promotional Image</h2>
     <div id="imageLoading" class="image-loading">Generating image&hellip;</div>
     <div id="imagePreviewWrap" class="image-preview-wrap" style="display:none;">
@@ -263,28 +303,22 @@
           </svg>
           Download PNG
         </button>
+        <button id="regenerateImageBtn" class="btn btn-secondary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" fill="currentColor"/>
+          </svg>
+          Regenerate
+        </button>
       </div>
     </div>
   </section>
 
   <div class="actions">
-    <button id="copyBtn" class="btn btn-primary">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z" fill="currentColor"/>
-      </svg>
-      Copy to Clipboard
-    </button>
-    <button id="copyCloseBtn" class="btn btn-secondary">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z" fill="currentColor"/>
-      </svg>
-      Copy &amp; Close
-    </button>
     <button id="createImageBtn" class="btn btn-secondary" style="display:none;">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z" fill="currentColor"/>
       </svg>
-      <span id="createImageBtnText">Create Image</span>
+      Create Image
     </button>
   </div>
 
