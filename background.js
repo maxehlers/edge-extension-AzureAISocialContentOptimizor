@@ -32,8 +32,7 @@ const DEFAULT_WEBSITE_PROMPT = [
 const DEFAULT_IMAGE_PROMPT = [
   'Create a square 1024x1024 promotional social media image in Microsoft Fluent 2 design style.',
   'Background: modern abstract gradient using Microsoft brand colors — deep #0078D4 blue through soft white or light gray.',
-  'Display the following headline prominently in the center in large, bold white sans-serif lettering: "{headline}"',
-  'Add subtle geometric shapes or flowing lines typical of Microsoft design language.',
+  'Display the following headline prominently in the center in large, bold white sans-serif lettering: "{headline}"',  'Below the headline, display in smaller centered white text: "{domain}"',  'Add subtle geometric shapes or flowing lines typical of Microsoft design language.',
   'Include a Microsoft blue (#0078D4) gradient accent bar along the bottom edge.',
   'Professional, clean, modern corporate technology aesthetic.'
 ].join('\n');
@@ -354,16 +353,18 @@ async function callAzureAIForWebsite(url, title, selectedText, pageContent) {
   return stripMarkdown(markdownResult);
 }
 
-async function buildImagePrompt(headline, hasBackground) {
+async function buildImagePrompt(headline, domain, hasBackground) {
   const template = await getImagePrompt();
-  const base = template.replace(/\{headline\}/g, headline);
+  const base = template
+    .replace(/\{headline\}/g, headline)
+    .replace(/\{domain\}/g, domain || '');
   if (hasBackground) {
     return 'Apply a semi-transparent dark overlay to soften the provided background image.\n' + base;
   }
   return base;
 }
 
-async function generatePromotionalImage(headline, ogImageB64) {
+async function generatePromotionalImage(headline, domain, ogImageB64) {
   const { apiKey, endpoint, imageDeployment } = await chrome.storage.sync.get(['apiKey', 'endpoint', 'imageDeployment']);
   if (!apiKey || !endpoint || !imageDeployment) {
     throw new Error('Image generation is not configured. Please open Settings and fill in the Image Deployment Name field, then save.');
@@ -382,7 +383,7 @@ async function generatePromotionalImage(headline, ogImageB64) {
         const editsUrl = `${base}/openai/v1/images/edits`;
         const formData = new FormData();
         formData.append('image', bgBlob, 'background.png');
-        formData.append('prompt', await buildImagePrompt(headline, true));
+        formData.append('prompt', await buildImagePrompt(headline, domain, true));
         formData.append('model', imageDeployment);
         formData.append('size', '1024x1024');
         const editResponse = await fetch(editsUrl, {
@@ -409,7 +410,7 @@ async function generatePromotionalImage(headline, ogImageB64) {
     },
     body: JSON.stringify({
       model: imageDeployment,
-      prompt: await buildImagePrompt(headline, false),
+      prompt: await buildImagePrompt(headline, domain, false),
       size: '1024x1024',
       quality: 'medium',
       output_format: 'png',
@@ -659,8 +660,44 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           const sessionData = await chrome.storage.session.get([`ogImage_${tabId}`]);
           ogImageB64 = sessionData[`ogImage_${tabId}`] || '';
         }
-        const imageDataUrl = await generatePromotionalImage(request.headline || '', ogImageB64);
+        const imageDataUrl = await generatePromotionalImage(request.headline || '', request.domain || '', ogImageB64);
         sendResponse({ ok: true, imageDataUrl });
+      } catch (error) {
+        sendResponse({ ok: false, error: error.message || String(error) });
+      }
+    })();
+    return true;
+  }
+
+  if (request.action === 'getAltText') {
+    (async () => {
+      try {
+        const { apiKey, endpoint, deployment, apiVersion } = await chrome.storage.sync.get(['apiKey', 'endpoint', 'deployment', 'apiVersion']);
+        if (!apiKey || !endpoint || !deployment) throw new Error('API settings not configured');
+        const version = apiVersion || '2023-05-15';
+        const url = `${endpoint}/openai/deployments/${deployment}/chat/completions?api-version=${version}`;
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'api-key': apiKey },
+          body: JSON.stringify({
+            messages: [{
+              role: 'user',
+              content: [
+                { type: 'text', text: 'Write a concise, descriptive alt text for this image (1–2 sentences, plain text, no markdown, no quotes). Describe what is visually shown.' },
+                { type: 'image_url', image_url: { url: request.imageDataUrl } }
+              ]
+            }],
+            max_completion_tokens: 2000
+          })
+        });
+        if (!response.ok) {
+          const errJson = await response.json().catch(() => ({}));
+          throw new Error(`API call failed: ${response.status}` + (errJson.error ? ` - ${errJson.error.message}` : ''));
+        }
+        const data = await response.json();
+        const altText = (data.choices?.[0]?.message?.content || '').trim();
+        if (!altText) throw new Error('No alt text returned.');
+        sendResponse({ ok: true, altText });
       } catch (error) {
         sendResponse({ ok: false, error: error.message || String(error) });
       }

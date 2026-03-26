@@ -31,6 +31,7 @@ const DEFAULT_IMAGE_PROMPT = [
   'Create a square 1024x1024 promotional social media image in Microsoft Fluent 2 design style.',
   'Background: modern abstract gradient using Microsoft brand colors — deep #0078D4 blue through soft white or light gray.',
   'Display the following headline prominently in the center in large, bold white sans-serif lettering: "{headline}"',
+  'Below the headline, display in smaller centered white text: "{domain}"',
   'Add subtle geometric shapes or flowing lines typical of Microsoft design language.',
   'Include a Microsoft blue (#0078D4) gradient accent bar along the bottom edge.',
   'Professional, clean, modern corporate technology aesthetic.'

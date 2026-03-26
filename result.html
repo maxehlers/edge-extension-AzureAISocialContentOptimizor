@@ -96,6 +96,22 @@
       border-color: var(--color-brand);
     }
     .btn-copy-icon svg { display: block; }
+    .btn-copy-icon-inline {
+      position: static;
+      background: none;
+      border: 1px solid var(--color-neutral-stroke);
+      border-radius: var(--radius-small);
+      padding: 4px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--color-brand);
+      flex-shrink: 0;
+      transition: background .1s, border-color .1s;
+    }
+    .btn-copy-icon-inline:hover { background: #F0F6FC; border-color: var(--color-brand); }
+    .btn-copy-icon-inline svg { display: block; }
     .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
       margin-bottom: 16px;
     }
@@ -261,6 +277,61 @@
       display: flex; gap: 8px; margin-top: 8px;
       justify-content: center;
     }
+    .alt-text-section {
+      margin-top: 10px;
+      text-align: center;
+    }
+    .alt-text-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: var(--font-size-100);
+      color: var(--color-brand);
+      text-decoration: none;
+      cursor: pointer;
+      background: none;
+      border: none;
+      font-family: var(--font-family);
+      padding: 0;
+    }
+    .alt-text-link:hover { color: var(--color-brand-hover); }
+    .alt-text-link svg {
+      transition: transform .15s ease;
+      flex-shrink: 0;
+    }
+    .alt-text-link.open svg { transform: rotate(90deg); }
+    .alt-text-loading {
+      display: none;
+      font-size: var(--font-size-100);
+      color: var(--color-neutral-fg-secondary);
+      margin-top: 4px;
+    }
+    .alt-text-loading::before {
+      content: '';
+      display: inline-block;
+      width: 10px; height: 10px;
+      margin-right: 5px;
+      border: 2px solid var(--color-brand); border-top-color: transparent;
+      border-radius: 50%; animation: spin .7s linear infinite;
+      vertical-align: middle;
+    }
+    .alt-text-result {
+      display: none;
+      align-items: flex-start;
+      gap: 6px;
+      margin-top: 6px;
+      padding: 8px 10px;
+      background: var(--color-neutral-bg);
+      border: 1px solid var(--color-neutral-stroke-subtle);
+      border-radius: var(--radius-small);
+      text-align: left;
+    }
+    .alt-text-content {
+      flex: 1;
+      font-size: var(--font-size-100);
+      color: var(--color-neutral-fg-secondary);
+      line-height: 1.5;
+    }
   </style>
 </head>
 <body>
@@ -277,7 +348,7 @@
   <div id="processState" class="status-bar loading">Processing selection&hellip; waiting for AI response.</div>
 
   <div class="result-card-wrap">
-    <div id="resultDisplay" class="result-card"></div>
+    <div id="resultDisplay" class="result-card" style="display:none;"></div>
     <button id="copyBtn" class="btn-copy-icon" title="Copy to clipboard" style="display:none;">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z" fill="currentColor"/>
@@ -291,7 +362,7 @@
     <div id="optimizationCards" class="optimization-cards"></div>
   </section>
 
-  <section id="imageSection" class="image-section">
+  <section id="imageSection" class="image-section" style="display:none;">
     <h2 class="image-section-title">Promotional Image</h2>
     <div id="imageLoading" class="image-loading">Generating image&hellip;</div>
     <div id="imagePreviewWrap" class="image-preview-wrap" style="display:none;">
@@ -309,6 +380,23 @@
           </svg>
           Regenerate
         </button>
+      </div>
+      <div class="alt-text-section">
+        <button id="showAltTextBtn" class="alt-text-link">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Show Alt text
+        </button>
+        <div id="altTextLoading" class="alt-text-loading">Loading alt text&hellip;</div>
+        <div id="altTextResult" class="alt-text-result">
+          <span id="altTextContent" class="alt-text-content"></span>
+          <button id="copyAltTextBtn" class="btn-copy-icon-inline" title="Copy alt text">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z" fill="currentColor"/>
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
   </section>

@@ -1,5 +1,6 @@
 let originalText = '';
 let imageHeadline = '';
+let imageDomain = '';
 
 const processStateEl = document.getElementById('processState');
 const optimizationSectionEl = document.getElementById('optimizationSection');
@@ -14,7 +15,8 @@ function setProcessState(text) {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'setResult') {
     originalText = request.text;
-    document.getElementById('resultDisplay').textContent = request.text;
+    const resultDisplay = document.getElementById('resultDisplay');
+    if (resultDisplay) { resultDisplay.style.display = ''; resultDisplay.textContent = request.text; }
     processStateEl.classList.remove('loading');
     processStateEl.style.display = 'none';
     const copyBtn = document.getElementById('copyBtn');
@@ -22,8 +24,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     loadOptimizations(request.text);
     if (request.pageUrl) {
       imageHeadline = request.imageHeadline || '';
+      try { imageDomain = new URL(request.pageUrl).hostname.replace(/^www\./, ''); } catch (e) { imageDomain = ''; }
       const createImageBtn = document.getElementById('createImageBtn');
       if (createImageBtn) createImageBtn.style.display = '';
+      const imageSection = document.getElementById('imageSection');
+      if (imageSection) imageSection.style.display = '';
     }
   } else if (request.action === 'setError') {
     processStateEl.classList.remove('loading');
@@ -247,10 +252,10 @@ async function createImage() {
   if (imageSection) imageSection.style.display = 'block';
   if (imageLoadingEl) imageLoadingEl.classList.add('active');
   if (imagePreviewWrap) imagePreviewWrap.style.display = 'none';
-  if (createImageBtn) createImageBtn.disabled = true;
+  if (createImageBtn) createImageBtn.style.display = 'none';
 
   try {
-    const response = await sendRuntimeMessage({ action: 'generateImage', headline: imageHeadline });
+    const response = await sendRuntimeMessage({ action: 'generateImage', headline: imageHeadline, domain: imageDomain });
     if (!response.ok || !response.imageDataUrl) {
       throw new Error(response.error || 'Image generation failed.');
     }
@@ -259,9 +264,17 @@ async function createImage() {
     if (imagePreviewWrap) imagePreviewWrap.style.display = 'block';
     const createBtn = document.getElementById('createImageBtn');
     if (createBtn) createBtn.style.display = 'none';
+    // Reset alt text section for the new image
+    const showAltBtn = document.getElementById('showAltTextBtn');
+    const altLoadingEl = document.getElementById('altTextLoading');
+    const altResultEl = document.getElementById('altTextResult');
+    if (showAltBtn) { showAltBtn.style.display = ''; showAltBtn.disabled = false; showAltBtn.classList.remove('open'); }
+    if (altLoadingEl) altLoadingEl.style.display = 'none';
+    if (altResultEl) altResultEl.style.display = 'none';
   } catch (error) {
     if (imageLoadingEl) imageLoadingEl.classList.remove('active');
     if (imageSection) imageSection.style.display = 'none';
+    if (createImageBtn) createImageBtn.style.display = '';
     showWarningToast('\u26A0\uFE0F ' + error.message);
   } finally {
     if (createImageBtn) createImageBtn.disabled = false;
@@ -281,5 +294,53 @@ document.getElementById('downloadImageBtn')?.addEventListener('click', () => {
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
+});
+
+document.getElementById('showAltTextBtn')?.addEventListener('click', async () => {
+  const img = document.getElementById('generatedImage');
+  if (!img?.src || !img.src.startsWith('data:')) return;
+
+  const showAltBtn = document.getElementById('showAltTextBtn');
+  const altLoadingEl = document.getElementById('altTextLoading');
+  const altResultEl = document.getElementById('altTextResult');
+  const altContentEl = document.getElementById('altTextContent');
+
+  // If already open, toggle closed
+  if (showAltBtn?.classList.contains('open')) {
+    showAltBtn.classList.remove('open');
+    if (altResultEl) altResultEl.style.display = 'none';
+    return;
+  }
+
+  // If alt text already loaded, just re-show it
+  if (altContentEl?.textContent) {
+    showAltBtn?.classList.add('open');
+    if (altResultEl) altResultEl.style.display = 'flex';
+    return;
+  }
+
+  if (showAltBtn) showAltBtn.disabled = true;
+  if (altLoadingEl) altLoadingEl.style.display = 'block';
+
+  try {
+    const response = await sendRuntimeMessage({ action: 'getAltText', imageDataUrl: img.src });
+    if (!response.ok || !response.altText) throw new Error(response.error || 'Could not generate alt text.');
+    if (altContentEl) altContentEl.textContent = response.altText;
+    showAltBtn?.classList.add('open');
+    if (altResultEl) altResultEl.style.display = 'flex';
+  } catch (error) {
+    if (showAltBtn) { showAltBtn.disabled = false; }
+    showWarningToast('\u26A0\uFE0F ' + error.message);
+  } finally {
+    if (altLoadingEl) altLoadingEl.style.display = 'none';
+    if (showAltBtn) showAltBtn.disabled = false;
+  }
+});
+
+document.getElementById('copyAltTextBtn')?.addEventListener('click', () => {
+  const altContentEl = document.getElementById('altTextContent');
+  const text = altContentEl?.textContent || '';
+  if (!text) return;
+  navigator.clipboard.writeText(text).then(() => showModal('Alt text copied!'));
 });
 
