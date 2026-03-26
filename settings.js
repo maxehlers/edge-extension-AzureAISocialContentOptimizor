@@ -5,8 +5,9 @@ document.getElementById('settingsForm').addEventListener('submit', (e) => {
   const deployment = document.getElementById('deployment').value;
   const apiVersion = document.getElementById('apiVersion').value;
   const initialPrompt = document.getElementById('initialPrompt').value;
+  const imageDeployment = document.getElementById('imageDeployment').value;
 
-  chrome.storage.sync.set({ apiKey, endpoint, deployment, apiVersion, initialPrompt }, () => {
+  chrome.storage.sync.set({ apiKey, endpoint, deployment, apiVersion, initialPrompt, imageDeployment }, () => {
     const toast = document.getElementById('toast');
     const toastText = document.getElementById('toastText');
     toastText.textContent = '✓ Settings saved!';
@@ -19,10 +20,11 @@ document.getElementById('settingsForm').addEventListener('submit', (e) => {
 });
 
 // Load existing settings
-chrome.storage.sync.get(['apiKey', 'endpoint', 'deployment', 'apiVersion', 'initialPrompt'], (result) => {
+chrome.storage.sync.get(['apiKey', 'endpoint', 'deployment', 'apiVersion', 'initialPrompt', 'imageDeployment'], (result) => {
   document.getElementById('apiKey').value = result.apiKey || '';
   document.getElementById('endpoint').value = result.endpoint || '';
   document.getElementById('deployment').value = result.deployment || '';
   document.getElementById('apiVersion').value = result.apiVersion || '2023-05-15';
   document.getElementById('initialPrompt').value = result.initialPrompt || 'Du bist der Social Media Manager von Microsoft. Bitte formuliere dies so um, dass es zu mehr Engagement und Klicks für die Zielgruppe "Entscheidungsträger" führt. Halte Dich kurz, prägnant und bleibe in der bestehenden Sprache. Füge ggfs. passende Emojis hinzu.';
+  document.getElementById('imageDeployment').value = result.imageDeployment || '';
 });

@@ -1,4 +1,5 @@
 let originalText = '';
+let imageHeadline = '';
 
 const processStateEl = document.getElementById('processState');
 const optimizationSectionEl = document.getElementById('optimizationSection');
@@ -17,6 +18,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     processStateEl.classList.remove('loading');
     processStateEl.style.display = 'none';
     loadOptimizations(request.text);
+    if (request.pageUrl) {
+      imageHeadline = request.imageHeadline || '';
+      const createImageBtn = document.getElementById('createImageBtn');
+      if (createImageBtn) createImageBtn.style.display = '';
+    }
   } else if (request.action === 'setError') {
     processStateEl.classList.remove('loading');
     processStateEl.style.display = 'none';
@@ -239,5 +245,51 @@ document.getElementById('copyCloseBtn').addEventListener('click', () => {
 
 document.getElementById('openSettingsBtn').addEventListener('click', () => {
   chrome.runtime.openOptionsPage();
+});
+
+async function createImage() {
+  if (!imageHeadline) return;
+
+  const imageSection = document.getElementById('imageSection');
+  const imageLoadingEl = document.getElementById('imageLoading');
+  const imagePreviewWrap = document.getElementById('imagePreviewWrap');
+  const createImageBtn = document.getElementById('createImageBtn');
+  const generatedImg = document.getElementById('generatedImage');
+
+  if (imageSection) imageSection.style.display = 'block';
+  if (imageLoadingEl) imageLoadingEl.classList.add('active');
+  if (imagePreviewWrap) imagePreviewWrap.style.display = 'none';
+  if (createImageBtn) createImageBtn.disabled = true;
+
+  try {
+    const response = await sendRuntimeMessage({ action: 'generateImage', headline: imageHeadline });
+    if (!response.ok || !response.imageDataUrl) {
+      throw new Error(response.error || 'Image generation failed.');
+    }
+    if (generatedImg) generatedImg.src = response.imageDataUrl;
+    if (imageLoadingEl) imageLoadingEl.classList.remove('active');
+    if (imagePreviewWrap) imagePreviewWrap.style.display = 'block';
+    const textSpan = document.getElementById('createImageBtnText');
+    if (textSpan) textSpan.textContent = 'Regenerate Image';
+  } catch (error) {
+    if (imageLoadingEl) imageLoadingEl.classList.remove('active');
+    if (imageSection) imageSection.style.display = 'none';
+    showWarningToast('\u26A0\uFE0F ' + error.message);
+  } finally {
+    if (createImageBtn) createImageBtn.disabled = false;
+  }
+}
+
+document.getElementById('createImageBtn')?.addEventListener('click', createImage);
+
+document.getElementById('downloadImageBtn')?.addEventListener('click', () => {
+  const img = document.getElementById('generatedImage');
+  if (!img?.src || !img.src.startsWith('data:')) return;
+  const a = document.createElement('a');
+  a.href = img.src;
+  a.download = 'promotional-image.png';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 });
 

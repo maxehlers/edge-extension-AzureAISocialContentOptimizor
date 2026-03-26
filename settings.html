@@ -115,6 +115,13 @@
       margin: var(--spacing-xl) 0;
     }
 
+    .section-heading {
+      font-size: var(--font-size-200);
+      font-weight: var(--font-weight-semibold);
+      color: var(--color-neutral-fg);
+      margin-bottom: var(--spacing-m);
+    }
+
     .btn {
       display: inline-flex;
       align-items: center;
@@ -210,6 +217,15 @@
         <label for="apiVersion">API Version</label>
         <span class="field-hint">The Azure OpenAI REST API version. Use <code>2024-02-01</code> or later for GPT-4o deployments. See <a href="https://learn.microsoft.com/azure/ai-services/openai/reference" target="_blank">API reference</a> for available versions.</span>
         <input type="text" id="apiVersion" value="2023-05-15" required>
+      </div>
+
+      <hr class="divider">
+      <p class="section-heading">Image Generation</p>
+
+      <div class="field">
+        <label for="imageDeployment">Image Deployment Name</label>
+        <span class="field-hint">The name of your <code>gpt-image-1</code> deployment in <a href="https://oai.azure.com" target="_blank">Azure AI Foundry</a>. Uses the same API Key and Endpoint as above. Leave blank to disable image generation.</span>
+        <input type="text" id="imageDeployment" placeholder="gpt-image-1">
       </div>
 
       <hr class="divider">

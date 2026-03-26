@@ -1,4 +1,17 @@
-﻿const DEFAULT_PROMPT = 'Du bist der Social Media Manager von Microsoft. Bitte formuliere dies so um, dass es zu mehr Engagement und Klicks für die Zielgruppe "Entscheidungsträger" führt. Halte Dich kurz, prägnant und bleibe in der bestehenden Sprache. Bitte gebe mir AUSSCHLIEßLICH den generierten Text zurück und keine Argumente, warum Du etwas gemacht hast. Füge ggfs. passende Emojis hinzu.';
+﻿// const DEFAULT_PROMPT = 'Du bist der Social Media Manager von Microsoft. Bitte formuliere dies so um, dass es zu mehr Engagement und Klicks für die Zielgruppe "Entscheidungsträger" führt. Halte Dich kurz, prägnant und bleibe in der bestehenden Sprache. Bitte gebe mir AUSSCHLIEßLICH den generierten Text zurück und keine Argumente, warum Du etwas gemacht hast. Füge ggfs. passende Emojis hinzu.';
+
+const DEFAULT_PROMPT = [
+    'You are a Social Media Manager at Microsoft.',
+    'Please rewrite the following content to be more engaging and clickable for the expected target audience.',
+    '',
+    'Requirements:',
+    '- Write in Microsoft\'s tone of voice: professional, empowering, and human.',
+    '- Keep it short and punchy (max 4 sentences).',
+    '- Add relevant emojis.',
+    '- Add relevant hashtags.',
+    '- Leave an empty line between paragraphs.',
+    '- Return ONLY the final post text, no explanations.'
+  ].join('\n');
 
 async function getPrompt() {
   return new Promise((resolve) => {
@@ -13,11 +26,11 @@ function createContextMenu() {
   chrome.contextMenus.removeAll(() => {
     chrome.contextMenus.create({
       id: 'optimize-copy',
-      title: '📎Optimize copy with AI',
+      title: '📎Rephrase with Azure AI Foundry',
       contexts: ['selection', 'editable']
     });    chrome.contextMenus.create({
       id: 'create-website-copy',
-      title: '\uD83C\uDF10Create Social Media Copy for this Website',
+      title: '🦄 Create Social Media Copy for this Website',
       contexts: ['all']
     });  });
 }
@@ -310,6 +323,98 @@ async function callAzureAIForWebsite(url, title, selectedText, pageContent) {
   return stripMarkdown(markdownResult);
 }
 
+function buildImagePrompt(headline, hasBackground) {
+  if (hasBackground) {
+    return [
+      'Create a square 1080x1080 promotional social media image in Microsoft Fluent 2 design style.',
+      'Apply a semi-transparent dark overlay to soften the provided background image.',
+      'Display the following text prominently in the center in large, bold white sans-serif lettering (Segoe UI style):',
+      `"${headline}"`,
+      'Add a Microsoft blue (#0078D4) gradient accent bar along the bottom edge.',
+      "Keep the design professional, modern, and aligned with Microsoft's visual identity."
+    ].join('\n');
+  }
+  return [
+    'Create a square 1080x1080 promotional social media image in Microsoft Fluent 2 design style.',
+    'Background: modern abstract gradient using Microsoft brand colors — deep #0078D4 blue through soft white or light gray.',
+    'Display the following text prominently in the center in large, bold white sans-serif lettering:',
+    `"${headline}"`,
+    'Add subtle geometric shapes or flowing lines typical of Microsoft design language.',
+    'Include a Microsoft blue (#0078D4) gradient accent bar along the bottom edge.',
+    'Professional, clean, modern corporate technology aesthetic.'
+  ].join('\n');
+}
+
+async function generatePromotionalImage(headline, ogImageB64) {
+  const { apiKey, endpoint, imageDeployment } = await chrome.storage.sync.get(['apiKey', 'endpoint', 'imageDeployment']);
+  if (!apiKey || !endpoint || !imageDeployment) {
+    throw new Error('Image generation is not configured. Please open Settings and fill in the Image Deployment Name field, then save.');
+  }
+
+  // Strip trailing slash so URLs don't double-slash
+  const base = endpoint.replace(/\/+$/, '');
+  // gpt-image-1 uses the /openai/v1/ path with model in the body, no deployment path, no api-version
+  const genUrl = `${base}/openai/v1/images/generations`;
+
+  if (ogImageB64) {
+    try {
+      const bgResponse = await fetch(ogImageB64);
+      if (bgResponse.ok) {
+        const bgBlob = await bgResponse.blob();
+        const editsUrl = `${base}/openai/v1/images/edits`;
+        const formData = new FormData();
+        formData.append('image', bgBlob, 'background.png');
+        formData.append('prompt', buildImagePrompt(headline, true));
+        formData.append('model', imageDeployment);
+        formData.append('size', '1024x1024');
+        const editResponse = await fetch(editsUrl, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${apiKey}` },
+          body: formData
+        });
+        if (editResponse.ok) {
+          const data = await editResponse.json();
+          const b64 = data.data?.[0]?.b64_json;
+          if (b64) return `data:image/png;base64,${b64}`;
+        }
+      }
+    } catch (e) {
+      console.warn('Image edit with background failed, falling back to generation:', e);
+    }
+  }
+
+  const response = await fetch(genUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model: imageDeployment,
+      prompt: buildImagePrompt(headline, false),
+      size: '1024x1024',
+      quality: 'medium',
+      output_format: 'png',
+      output_compression: 100,
+      n: 1
+    })
+  });
+
+  if (!response.ok) {
+    let errorText = `Image API call failed: ${response.status}`;
+    try {
+      const errJson = await response.json();
+      if (errJson.error) errorText += ` - ${errJson.error.message || JSON.stringify(errJson.error)}`;
+    } catch (e) { /* ignore */ }
+    throw new Error(errorText);
+  }
+
+  const data = await response.json();
+  const b64 = data.data?.[0]?.b64_json;
+  if (!b64) throw new Error('No image data returned from the API. Check that your Image Deployment Name is correct.');
+  return `data:image/png;base64,${b64}`;
+}
+
 async function generateTitle(resultText) {
   try {
     const { apiKey, endpoint, deployment, apiVersion } = await chrome.storage.sync.get(['apiKey', 'endpoint', 'deployment', 'apiVersion']);
@@ -421,14 +526,41 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
     try {
       let pageContent = '';
+      let ogImageB64 = '';
+      let ogImageUrl = '';
       try {
-        const [{ result }] = await chrome.scripting.executeScript({
+        const [{ result: pageData }] = await chrome.scripting.executeScript({
           target: { tabId: tab.id },
-          func: () => document.body?.innerText || ''
+          func: async () => {
+            const innerText = (document.body?.innerText || '').slice(0, 8000);
+            const ogSrc = document.querySelector('meta[property="og:image"]')?.content ||
+                          document.querySelector('meta[name="og:image"]')?.content || '';
+            let ogB64 = '';
+            if (ogSrc) {
+              try {
+                const resp = await fetch(ogSrc);
+                if (resp.ok) {
+                  const blob = await resp.blob();
+                  ogB64 = await new Promise((res) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => res(reader.result || '');
+                    reader.readAsDataURL(blob);
+                  });
+                }
+              } catch (e) { /* OG image unavailable, continue without */ }
+            }
+            return { innerText, ogSrc, ogB64 };
+          }
         });
-        pageContent = result || '';
+        pageContent = pageData?.innerText || '';
+        ogImageUrl = pageData?.ogSrc || '';
+        ogImageB64 = pageData?.ogB64 || '';
       } catch (e) {
         console.warn('Could not extract page content:', e);
+      }
+
+      if (ogImageB64 && resultTabId) {
+        await chrome.storage.session.set({ [`ogImage_${resultTabId}`]: ogImageB64 });
       }
 
       const text = await callAzureAIForWebsite(
@@ -437,9 +569,16 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
         info.selectionText || '',
         pageContent
       );
+      const imageHeadline = (info.selectionText || '').trim() || tab.title || '';
       const title = await generateTitle(text);
       if (title) chrome.tabs.sendMessage(resultTabId, { action: 'setTitle', title });
-      chrome.tabs.sendMessage(resultTabId, { action: 'setResult', text });
+      chrome.tabs.sendMessage(resultTabId, {
+        action: 'setResult',
+        text,
+        pageUrl: tab.url || '',
+        imageHeadline,
+        ogImageUrl
+      });
     } catch (error) {
       chrome.tabs.sendMessage(resultTabId, { action: 'setError', error: error.message });
     }
@@ -486,6 +625,24 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       try {
         const text = await applyOptimizationInstruction(request.text || '', request.instruction || '');
         sendResponse({ ok: true, text });
+      } catch (error) {
+        sendResponse({ ok: false, error: error.message || String(error) });
+      }
+    })();
+    return true;
+  }
+
+  if (request.action === 'generateImage') {
+    (async () => {
+      try {
+        const tabId = sender.tab?.id;
+        let ogImageB64 = '';
+        if (tabId) {
+          const sessionData = await chrome.storage.session.get([`ogImage_${tabId}`]);
+          ogImageB64 = sessionData[`ogImage_${tabId}`] || '';
+        }
+        const imageDataUrl = await generatePromotionalImage(request.headline || '', ogImageB64);
+        sendResponse({ ok: true, imageDataUrl });
       } catch (error) {
         sendResponse({ ok: false, error: error.message || String(error) });
       }

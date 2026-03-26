@@ -189,6 +189,46 @@
       from { opacity: 0; transform: translateX(-50%) translateY(6px); }
       to   { opacity: 1; transform: translateX(-50%) translateY(0); }
     }
+    .image-section {
+      margin-top: 16px;
+      margin-bottom: 16px;
+    }
+    .image-section-title {
+      font-size: var(--font-size-200);
+      font-weight: var(--font-weight-semibold);
+      margin-bottom: 8px;
+    }
+    .image-loading {
+      display: none;
+      text-align: center;
+      padding: 16px 8px;
+      color: var(--color-neutral-fg-secondary);
+      font-size: var(--font-size-100);
+    }
+    .image-loading.active { display: block; }
+    .image-loading::before {
+      content: '';
+      display: inline-block;
+      width: 12px; height: 12px;
+      margin-right: 6px;
+      border: 2px solid var(--color-brand); border-top-color: transparent;
+      border-radius: 50%; animation: spin .7s linear infinite;
+      vertical-align: middle;
+    }
+    .image-preview-wrap {
+      max-width: 320px;
+      margin: 0 auto;
+    }
+    .image-preview-wrap img {
+      width: 100%; height: auto;
+      border-radius: var(--radius-medium);
+      border: 1px solid var(--color-neutral-stroke-subtle);
+      display: block;
+    }
+    .image-actions {
+      display: flex; gap: 8px; margin-top: 8px;
+      justify-content: center;
+    }
   </style>
 </head>
 <body>
@@ -211,6 +251,22 @@
     <div id="optimizationCards" class="optimization-cards"></div>
   </section>
 
+  <section id="imageSection" class="image-section" style="display:none;">
+    <h2 class="image-section-title">Promotional Image</h2>
+    <div id="imageLoading" class="image-loading">Generating image&hellip;</div>
+    <div id="imagePreviewWrap" class="image-preview-wrap" style="display:none;">
+      <img id="generatedImage" src="" alt="Generated promotional image">
+      <div class="image-actions">
+        <button id="downloadImageBtn" class="btn btn-secondary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" fill="currentColor"/>
+          </svg>
+          Download PNG
+        </button>
+      </div>
+    </div>
+  </section>
+
   <div class="actions">
     <button id="copyBtn" class="btn btn-primary">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -223,6 +279,12 @@
         <path d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z" fill="currentColor"/>
       </svg>
       Copy &amp; Close
+    </button>
+    <button id="createImageBtn" class="btn btn-secondary" style="display:none;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z" fill="currentColor"/>
+      </svg>
+      <span id="createImageBtnText">Create Image</span>
     </button>
   </div>
 
