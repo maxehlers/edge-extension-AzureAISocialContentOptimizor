@@ -2,6 +2,7 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
+  <link rel="icon" type="image/svg+xml" href="icons/favicon.svg">
   <title>Settings &ndash; AI Social Media Optimizer</title>
   <style>
     :root {
@@ -189,11 +190,23 @@
 <body>
 
   <header class="app-header">
-    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect width="13" height="13" fill="#F25022"/>
-      <rect x="15" width="13" height="13" fill="#7FBA00"/>
-      <rect y="15" width="13" height="13" fill="#00A4EF"/>
-      <rect x="15" y="15" width="13" height="13" fill="#FFB900"/>
+    <svg width="28" height="28" viewBox="80 80 360 360" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="hgrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#5BC0F8;stop-opacity:1" />
+          <stop offset="100%" style="stop-color:#0078D4;stop-opacity:1" />
+        </linearGradient>
+        <linearGradient id="hgrad2" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" style="stop-color:#E6F4FF;stop-opacity:1" />
+          <stop offset="100%" style="stop-color:#A6D4FA;stop-opacity:1" />
+        </linearGradient>
+      </defs>
+      <rect x="80" y="80" width="280" height="320" rx="40" fill="url(#hgrad2)" />
+      <rect x="200" y="80" width="160" height="320" rx="40" fill="url(#hgrad1)" />
+      <polygon points="150,230 400,160 280,360" fill="url(#hgrad1)" />
+      <polygon points="150,230 260,260 280,360" fill="#FFFFFF" opacity="0.85" />
+      <circle cx="380" cy="380" r="60" fill="url(#hgrad1)" />
+      <text x="380" y="400" text-anchor="middle" font-family="Segoe UI, Arial" font-size="48" fill="#FFFFFF" font-weight="600">AI</text>
     </svg>
     <h1 class="app-title">Social Media AI Copy </h1>
   </header>

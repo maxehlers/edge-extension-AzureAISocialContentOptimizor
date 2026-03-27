@@ -3,13 +3,23 @@
   "name": "Social Media AI Copy Optimizer",
   "version": "1.0",
   "description": "Optimize selected text with AI for social media engagement.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
   "permissions": ["contextMenus", "tabs", "storage", "activeTab", "notifications", "scripting"],
   "background": {
     "service_worker": "background.js"
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Copilot Social Media Optimizer"
+    "default_title": "Copilot Social Media Optimizer",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
   },
   "options_page": "settings.html",
   "content_scripts": [

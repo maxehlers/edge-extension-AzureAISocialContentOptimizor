@@ -1,6 +1,10 @@
 {
     "chat.tools.terminal.autoApprove": {
         "git push": true,
-        "git commit": true
+        "git commit": true,
+        "Add-Type": true,
+        "New-Item": true,
+        "Out-Null": true,
+        "New-Object": true
     }
 }
