@@ -25,10 +25,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.pageUrl) {
       imageHeadline = request.imageHeadline || '';
       try { imageDomain = new URL(request.pageUrl).hostname.replace(/^www\./, ''); } catch (e) { imageDomain = ''; }
-      const createImageBtn = document.getElementById('createImageBtn');
-      if (createImageBtn) createImageBtn.style.display = '';
-      const imageSection = document.getElementById('imageSection');
-      if (imageSection) imageSection.style.display = '';
+      chrome.storage.sync.get(['imageDeployment'], (result) => {
+        if (result.imageDeployment && result.imageDeployment.trim()) {
+          const createImageBtn = document.getElementById('createImageBtn');
+          if (createImageBtn) createImageBtn.style.display = '';
+          const imageSection = document.getElementById('imageSection');
+          if (imageSection) imageSection.style.display = '';
+        }
+      });
     }
   } else if (request.action === 'setError') {
     processStateEl.classList.remove('loading');
