@@ -155,7 +155,7 @@ async function callAzureAI(text) {
       messages: [
         { role: 'user', content: `Use these instructions:\n${prompt}\n\n This is the social media post to be transformed:\n ${text}` }
       ],
-      max_completion_tokens: 800
+      max_completion_tokens: 3000
     })
   });
 
@@ -234,7 +234,7 @@ async function getOptimizationSuggestions(currentText) {
       messages: [
         { role: 'user', content: `${prompt}\n\nTEXT:\n${currentText}` }
       ],
-      max_completion_tokens: 800
+      max_completion_tokens: 3000
     })
   });
 
@@ -276,7 +276,7 @@ async function applyOptimizationInstruction(currentText, instruction) {
       messages: [
         { role: 'user', content: `${prompt}\n\nTEXT:\n${currentText}` }
       ],
-      max_completion_tokens: 800
+      max_completion_tokens: 3000
     })
   });
 
@@ -329,7 +329,7 @@ async function callAzureAIForWebsite(url, title, selectedText, pageContent) {
       messages: [
         { role: 'user', content: prompt }
       ],
-      max_completion_tokens: 1200
+      max_completion_tokens: 3000
     })
   });
 
@@ -450,7 +450,7 @@ async function generateTitle(resultText) {
           role: 'user',
           content: `Write a short headline (3-5 words) that summarizes the purpose of this social media post. Return ONLY the headline, no punctuation at the end, no quotes.\n\nPOST:\n${resultText}`
         }],
-        max_completion_tokens: 500
+        max_completion_tokens: 1500
       })
     });
 
@@ -687,7 +687,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 { type: 'image_url', image_url: { url: request.imageDataUrl } }
               ]
             }],
-            max_completion_tokens: 2000
+            max_completion_tokens: 3000
           })
         });
         if (!response.ok) {
