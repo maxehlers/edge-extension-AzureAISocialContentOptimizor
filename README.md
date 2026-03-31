@@ -1,177 +1,274 @@
 ﻿# Social Media AI Copy Optimizer
 
-A Microsoft Edge browser extension that uses **Azure AI Foundry** to optimize selected text for social media, generate full promotional posts for any webpage you visit, and create **AI-generated 1024x1024 promotional images** with alt text — all from the right-click context menu.
+An Edge extension for creating social-ready copy from selected text or full webpages with Azure OpenAI. It can also generate matching promotional images and alt text from the same workflow.
 
-## Features
+## ✨ Current Features
 
-### Text Generation
-- **Rephrase with Azure AI Foundry** — Select any text, right-click, and get an AI-optimized social media post in a Fluent 2 popup
-- **Create Social Media Copy for this Website** — Right-click anywhere on a page to generate a promotional post from the page's actual content (no selection required)
-- **Dynamic popup title** — Each result gets an AI-generated 3-5 word headline
-- **Markdown stripping** — AI responses are automatically cleaned of markdown
+### 📝 Copy generation
+- Right-click selected text and run `📎Rephrase with Azure AI Foundry`
+- Right-click any webpage and run `🦄 Create Social Media Copy for this Website`
+- Uses your Azure OpenAI text deployment to generate short, social-ready copy
+- Strips markdown from model output before displaying the result
+- Generates a short AI title for the popup window
 
-### AI-Powered Optimization Suggestions
-- After each result, the AI suggests **4 follow-up optimizations** (e.g. "Make this shorter", "Add a stronger CTA")
-- Suggestions appear as clickable cards with semantic icons below the result text
-- Clicking a card rewrites the result and generates 4 fresh suggestions
+### 🔁 Follow-up optimizations
+- After text is generated, the result window loads 4 follow-up optimization suggestions
+- Each suggestion can rewrite the current result in one click
+- Suggestions refresh after every rewrite
 
-### Image Generation
-- **Create Image** button appears after a website copy is generated — hides immediately on click to prevent double-generation
-- Calls **gpt-image-1** via Azure AI Foundry to create a **1024x1024 promotional image**
-- The **page domain** is rendered in smaller text below the headline on the image
-- If the webpage has an `og:image` meta tag, that image is used as the background; otherwise a Microsoft-branded gradient is generated
-- **Regenerate** button creates a new version without leaving the popup
-- **Download PNG** saves the image directly to disk
-- **Show Alt text** — collapsible toggle below the image; fetches an AI-generated accessibility description using GPT-4o vision; includes an icon-only copy button
+### 🖼️ Promotional image generation
+- Website-copy results can generate a 1024x1024 promotional image
+- Uses your `gpt-image-1` deployment if configured
+- Reuses the page domain in the image text
+- Tries to use the page's `og:image` as the visual background when available
+- Falls back to a generated Fluent-style background if no OG image is available
+- Supports regenerate and direct PNG download
 
-### Design & UX
-- **Fluent 2 / Microsoft Reimagine** design system throughout
-- Result card and "Promotional Image" section are hidden until content is loaded
-- Icon-only copy button appears in the top-right corner of the result card after content loads
-- **Yellow warning toast** for API errors (5 s auto-dismiss)
-- **Green toast** for copy confirmation (3 s auto-dismiss)
-- **Settings saved toast** on save
+### ♿ Alt text generation
+- Generates alt text for the created image with your text model
+- Shows the alt text inline in the result window
+- Includes a one-click copy action for the generated alt text
 
-### Fully Customizable Prompts
-All three AI prompts are editable in Settings:
-- **Rephrase Prompt** — used by "Rephrase with AI"
-- **Website Copy Prompt** — used by "Create Social Media Copy for this Website"
-- **Image Prompt** — used by gpt-image-1; supports `{headline}` and `{domain}` placeholders
+### ⚙️ Configurable prompts
+- Rephrase prompt is editable in Settings
+- Website copy prompt is editable in Settings
+- Image prompt is editable in Settings
+- Image prompt supports `{headline}` and `{domain}` placeholders
 
----
+### 🎨 Result window experience
+- Separate popup window for results
+- One-click copy button for generated text
+- Loading states for text, optimizations, image generation, and alt text
+- Warning toast for API errors and success toast for copy/save actions
 
-## Prerequisites
+## ✅ What You Need Before Installing
 
-- Microsoft Edge (version 88 or later)
-- An **Azure AI Foundry** resource with:
-  - A deployed **text model** (e.g. GPT-4o) for copy generation and alt text
-  - A deployed **gpt-image-1** model for image generation (optional)
-- Your resource's **API Key** and **Endpoint URL**
+You need:
 
----
+- Microsoft Edge
+- An Azure subscription
+- An Azure OpenAI-compatible resource with an API key and endpoint
+- One deployed text model for copy generation and alt text
+- Optionally, one deployed `gpt-image-1` model for image generation
 
-## Installation
+Important:
 
-1. Clone or download this repository
-2. Open Edge and navigate to `edge://extensions/`
-3. Enable **Developer Mode** (toggle in the top-right corner)
-4. Click **Load unpacked** and select the extension folder
-5. The Settings page opens automatically on first install
+- This extension uses the same API key and endpoint for both text and image generation
+- The only extra value for images is the image deployment name
 
----
+## 🚀 Step-by-Step Installation For New Users
 
-## Configuration
+### 1. Create or open your Azure resource
 
-Open Settings via the extension toolbar icon or `edge://extensions/` -> Details -> Extension options.
+1. Open the Azure Portal at `https://portal.azure.com`
+2. Create or open your Azure OpenAI resource
+3. Wait until the resource is deployed successfully
 
-### Connection _(shared by all AI functions)_
+If you already have a working Azure OpenAI resource, you can reuse it.
 
-| Field | Description | Where to find it |
+### 2. Find your API key and endpoint in Azure Portal
+
+1. In the Azure Portal, open your Azure OpenAI resource
+2. In the left navigation, open `Resource Management` -> `Keys and Endpoint`
+3. Copy one of the keys from `KEY 1` or `KEY 2`
+4. Copy the `Endpoint`
+
+You will paste these into the extension settings later.
+
+Example endpoint format:
+
+```text
+https://your-resource-name.openai.azure.com
+```
+
+### 3. Create your model deployments in Azure AI Foundry
+
+1. Open Azure AI Foundry at `https://ai.azure.com`
+2. Open the project or resource that is connected to your Azure OpenAI resource
+3. Go to `Deployments`
+4. Create a text model deployment for copy generation
+5. Optionally create a `gpt-image-1` deployment for image generation
+
+Recommended setup:
+
+- Text deployment: `gpt-4o` or another chat-capable model you already use successfully
+- Image deployment: `gpt-image-1`
+
+Important:
+
+- The extension needs the deployment name, not just the model name
+- The deployment name is whatever you chose when creating the deployment in Azure AI Foundry
+
+### 4. Find the deployment names in Azure AI Foundry
+
+1. In Azure AI Foundry, open `Deployments`
+2. Locate your text deployment
+3. Copy the deployment name exactly as shown
+4. If you created an image deployment, copy that deployment name too
+
+You will use:
+
+- `Deployment Name` for text generation
+- `Image Deployment Name` for `gpt-image-1`
+
+### 5. Download or open this extension locally
+
+1. Download this repository or clone it locally
+2. Keep the folder contents unzipped and unchanged
+
+### 6. Load the extension in Microsoft Edge
+
+1. Open Edge
+2. Navigate to `edge://extensions/`
+3. Turn on `Developer mode` in the top-right corner
+4. Click `Load unpacked`
+5. Select this project folder
+
+On first install, the extension opens the Settings page automatically if required values are missing.
+
+### 7. Fill in the extension settings
+
+Open the Settings page and fill in these fields:
+
+| Field | What to enter | Where to find it |
 |---|---|---|
-| **API Key** | Your Azure OpenAI resource key | Azure Portal -> your resource -> *Keys and Endpoint* |
-| **Endpoint** | Base URL of your resource | Azure Portal -> *Keys and Endpoint*, e.g. `https://<resource>.openai.azure.com` |
+| API Key | One valid resource key | Azure Portal -> your Azure OpenAI resource -> `Keys and Endpoint` |
+| Endpoint | Your Azure OpenAI endpoint | Azure Portal -> your Azure OpenAI resource -> `Keys and Endpoint` |
+| Deployment Name | Your text model deployment name | Azure AI Foundry -> `Deployments` |
+| API Version | A supported Azure OpenAI API version | Use `2024-02-01` or later for GPT-4o |
+| Rephrase Prompt | Optional custom rewrite instructions | Set directly in the extension |
+| Website Copy Prompt | Optional custom website-post instructions | Set directly in the extension |
+| Image Deployment Name | Your `gpt-image-1` deployment name | Azure AI Foundry -> `Deployments` |
+| Image Prompt | Optional custom image instructions | Set directly in the extension |
 
-### Text Generation
+Then click `Save Settings`.
 
-| Field | Description |
-|---|---|
-| **Deployment Name** | Name of your GPT-4o (or similar) deployment in [Azure AI Foundry](https://oai.azure.com) |
-| **API Version** | Use `2024-02-01` or later for GPT-4o. See [API reference](https://learn.microsoft.com/azure/ai-services/openai/reference) |
-| **Rephrase Prompt** | Instructions for the "Rephrase with AI" action. Selected text is appended automatically |
-| **Website Copy Prompt** | Instructions for "Create Social Media Copy for this Website". Page title, URL, and content are appended automatically |
+## 🧭 Where To Find Each Value
 
-### Image Generation
+### Azure Portal
 
-| Field | Description |
-|---|---|
-| **Image Deployment Name** | Name of your `gpt-image-1` deployment. Leave blank to hide the Create Image button |
-| **Image Prompt** | Instructions for the promotional image. Use `{headline}` for the article headline and `{domain}` for the website domain |
+Use Azure Portal for:
 
----
+- API Key
+- Endpoint
 
-## Usage
+Path:
+
+`Azure Portal -> Your Azure OpenAI resource -> Keys and Endpoint`
+
+### Azure AI Foundry
+
+Use Azure AI Foundry for:
+
+- Text deployment name
+- Image deployment name
+
+Path:
+
+`Azure AI Foundry -> Your project/resource -> Deployments`
+
+## ▶️ How To Use The Extension
 
 ### Rephrase selected text
-1. Select any text on a webpage
-2. Right-click -> **Rephrase with Azure AI Foundry**
-3. A popup opens with the AI-optimized post
-4. Use the 4 suggestion cards below for further refinements
-5. Click the icon-only copy button (top-right of the result card) to copy
 
-### Generate a post for a whole webpage
-1. Navigate to any webpage
-2. Right-click anywhere (optionally select a quote to include)
-3. Choose **Create Social Media Copy for this Website**
-4. The extension extracts the page content and generates a post
-5. Click **Create Image** to generate a matching visual
+1. Open any webpage
+2. Select the text you want to rewrite
+3. Right-click the selection
+4. Click `📎Rephrase with Azure AI Foundry`
+5. Wait for the result popup to appear
+6. Copy the result or apply one of the optimization cards
 
-### Generate a promotional image
-1. After website copy is generated, click **Create Image** (the button hides immediately)
-2. The extension attempts to use the page's OG image as background; falls back to a generated gradient
-3. The page domain is shown below the headline on the image
-4. Click **Download PNG** to save or **Regenerate** for a new version
-5. Click **Show Alt text** to generate and copy an accessibility description
+### Create copy for an entire webpage
 
----
+1. Open the webpage you want to promote
+2. Right-click anywhere on the page
+3. Click `🦄 Create Social Media Copy for this Website`
+4. Wait for the popup result
+5. Copy the text, refine it with optimization cards, or generate an image
 
-## Technical Details
+Optional:
 
-### Architecture
+- If you highlight text before using the website action, the extension can include that selected text as a quote in the generated post
 
-| File | Role |
+### Generate an image
+
+1. Generate website copy first
+2. In the result popup, click `Create Image`
+3. Wait for the image to render
+4. Use `Regenerate` to try again or `Download PNG` to save it
+5. Click `Show Alt text` if you also want accessibility text
+
+## 🛠️ Settings Overview
+
+### Connection
+
+- `API Key`: Shared by all extension features
+- `Endpoint`: Shared by all extension features
+
+### Text Generation
+
+- `Deployment Name`: Used for rephrasing, website copy, optimization suggestions, optimization rewrites, popup title generation, and alt text generation
+- `API Version`: Used for text API calls
+- `Rephrase Prompt`: Custom instructions for selected-text rewrites
+- `Website Copy Prompt`: Custom instructions for webpage-based post creation
+
+### Image Generation
+
+- `Image Deployment Name`: Enables image generation when filled in
+- `Image Prompt`: Template for the promotional image request
+
+If `Image Deployment Name` is left blank, the image workflow is effectively unavailable.
+
+## 🧱 Project Files
+
+| File | Purpose |
 |---|---|
-| `background.js` | Service worker — context menus, all Azure AI API calls, popup management |
-| `content.js` | Content script — ping responder for dynamic injection detection |
-| `result.html/js` | Popup result window — text result, optimization cards, image preview, alt text |
-| `settings.html/js` | Configuration UI |
-| `popup.html` | Extension toolbar popup |
+| `background.js` | Context menus, Azure API calls, popup window handling |
+| `content.js` | Content script messaging and selection metadata support |
+| `result.html` | Result popup UI |
+| `result.js` | Result popup interactions and follow-up actions |
+| `settings.html` | Settings UI |
+| `settings.js` | Settings persistence |
+| `popup.html` | Small toolbar popup |
 
-### API calls per interaction
+## 🔐 Privacy And Data Flow
 
-| Function | Purpose | Model | `max_completion_tokens` |
-|---|---|---|---|
-| `callAzureAI` | Rephrase selected text | GPT-4o | 800 |
-| `callAzureAIForWebsite` | Generate post for full page | GPT-4o | 1200 |
-| `getOptimizationSuggestions` | 4 follow-up suggestion labels | GPT-4o | 300 |
-| `applyOptimizationInstruction` | Apply a selected suggestion | GPT-4o | 800 |
-| `generateTitle` | 3-5 word popup headline | GPT-4o | 60 |
-| `generatePromotionalImage` | 1024x1024 promotional image | gpt-image-1 | — |
-| `getAltText` | Accessibility description for generated image | GPT-4o (vision) | 150 |
+- API credentials are stored in `chrome.storage.sync`
+- Selected text and page content are sent to your configured Azure endpoint
+- Generated image requests are sent to the same Azure endpoint using your configured API key
+- If a page exposes an `og:image`, the extension may fetch it and use it as image-generation input
+- No additional third-party AI service is used by the extension
 
-### Image generation flow
+## 🧪 Troubleshooting
 
-1. `chrome.scripting.executeScript` extracts `og:image` from the source tab and fetches it as base64 within the page context (avoids CORS issues)
-2. The base64 image is stored in `chrome.storage.session` keyed by result tab ID
-3. On "Create Image", background service worker retrieves it and calls:
-   - `POST {endpoint}/openai/v1/images/edits` (multipart, with OG image) if available
-   - `POST {endpoint}/openai/v1/images/generations` (JSON) as fallback
-4. The `{headline}` and `{domain}` placeholders in the image prompt are replaced at call time
-5. Response is `b64_json`, returned as a `data:image/png;base64,...` URL to the popup
+### The Settings page opens every time
 
-### Alt text flow
+Make sure these fields are saved:
 
-- The generated image data URL is sent directly to GPT-4o via the vision `image_url` message format
-- The model returns a plain-text 1-2 sentence description
-- Result is cached in the DOM; re-clicking "Show Alt text" toggles the panel without a second API call
-- Regenerating the image clears the cached alt text
+- API Key
+- Endpoint
+- Deployment Name
 
-### Permissions
+### The image button does not work
 
-| Permission | Purpose |
-|---|---|
-| `contextMenus` | Right-click menu entries |
-| `tabs` | Messaging with the result popup tab |
-| `storage` | Settings, credentials, and session OG image cache |
-| `activeTab` | Access to the currently active tab |
-| `scripting` | Extract page `innerText` and `og:image`; dynamic content script injection |
-| `windows` | Creating the result popup window |
+Check these items:
 
----
+- `Image Deployment Name` is filled in
+- The deployment really points to `gpt-image-1`
+- The API key belongs to the same Azure resource you are using for the endpoint
 
-## Security & Privacy
+### The model returns errors
 
-- API credentials are stored in Edge's encrypted sync storage (`chrome.storage.sync`)
-- Selected text, page content, and OG images are sent **only to your own Azure OpenAI endpoint** — no third-party services
-- OG images are fetched from within the page context; the extension never makes cross-origin image requests directly
-- No data is logged or persisted beyond the current browser session
-- All API calls are made over HTTPS
+Check these items:
+
+- The endpoint has no typo
+- The deployment name is exact
+- The API version is compatible with your text model
+- Your Azure resource has access to the model you deployed
+
+### I am not sure which portal to use
+
+Use:
+
+- Azure Portal for keys and endpoint
+- Azure AI Foundry for deployments
