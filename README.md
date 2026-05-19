@@ -16,6 +16,14 @@ An Edge extension for creating social-ready copy from selected text or full webp
 - Each suggestion can rewrite the current result in one click
 - Suggestions refresh after every rewrite
 
+### 🌍 Translate the post
+- Dropdown menu `Translate the post into...` below the optimization cards
+- Top of the list contains English, German, Dutch, Spanish, Italian, French, and Turkish
+- Full EMEA language list below the separator, sorted alphabetically by English name
+- Each option shows the English name and the native name (e.g. `German | Deutsch`, `Arabic | العربية`)
+- Translation preserves tone, emojis, hashtags, line breaks, and URLs
+- After translating, the optimization suggestions refresh for the new language
+
 ### 🖼️ Promotional image generation
 - Website-copy results can generate a 1024x1024 promotional image
 - Uses your `gpt-image-1` deployment if configured
@@ -177,6 +185,7 @@ Path:
 4. Click `📎Rephrase with Azure AI Foundry`
 5. Wait for the result popup to appear
 6. Copy the result or apply one of the optimization cards
+7. Optionally pick a target language from the `Translate the post into...` dropdown
 
 ### Create copy for an entire webpage
 
@@ -207,7 +216,7 @@ Optional:
 
 ### Text Generation
 
-- `Deployment Name`: Used for rephrasing, website copy, optimization suggestions, optimization rewrites, popup title generation, and alt text generation
+- `Deployment Name`: Used for rephrasing, website copy, optimization suggestions, optimization rewrites, translation, popup title generation, and alt text generation
 - `API Version`: Used for text API calls
 - `Rephrase Prompt`: Custom instructions for selected-text rewrites
 - `Website Copy Prompt`: Custom instructions for webpage-based post creation
