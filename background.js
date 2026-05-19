@@ -293,6 +293,65 @@ async function applyOptimizationInstruction(currentText, instruction) {
   return stripMarkdown(markdownResult);
 }
 
+async function translateText(currentText, language) {
+  if (!currentText || !currentText.trim()) {
+    throw new Error('No text to translate.');
+  }
+  if (!language || !language.trim()) {
+    throw new Error('No target language specified.');
+  }
+
+  const { apiKey, endpoint, deployment, apiVersion } = await chrome.storage.sync.get(['apiKey', 'endpoint', 'deployment', 'apiVersion']);
+  if (!apiKey || !endpoint || !deployment) {
+    throw new Error('API settings not configured');
+  }
+
+  const version = apiVersion || '2023-05-15';
+  const url = `${endpoint}/openai/deployments/${deployment}/chat/completions?api-version=${version}`;
+
+  const prompt = [
+    `Translate the following social media post into ${language}.`,
+    '',
+    'Rules:',
+    '- Preserve the tone, emojis, hashtags, line breaks, and any URLs.',
+    '- Do not add explanations or notes.',
+    '- Return ONLY the translated post text.'
+  ].join('\n');
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'api-key': apiKey
+    },
+    body: JSON.stringify({
+      messages: [
+        { role: 'user', content: `${prompt}\n\nTEXT:\n${currentText}` }
+      ],
+      max_completion_tokens: 3000
+    })
+  });
+
+  if (!response.ok) {
+    let errorText = `API call failed: ${response.status}`;
+    try {
+      const errJson = await response.json();
+      if (errJson.error) {
+        errorText += ` - ${errJson.error.message || JSON.stringify(errJson.error)}`;
+      }
+    } catch (err) { /* ignore */ }
+    throw new Error(errorText);
+  }
+
+  const data = await response.json();
+  const markdownResult = data.choices?.[0]?.message?.content || '';
+  if (!markdownResult.trim()) {
+    const reason = data.choices?.[0]?.finish_reason || 'unknown';
+    throw new Error(`The API returned an empty response (finish_reason: ${reason}). Try a different API version or check your deployment.`);
+  }
+  return stripMarkdown(markdownResult);
+}
+
 async function callAzureAIForWebsite(url, title, selectedText, pageContent) {
   const { apiKey, endpoint, deployment, apiVersion } = await chrome.storage.sync.get(['apiKey', 'endpoint', 'deployment', 'apiVersion']);
   if (!apiKey || !endpoint || !deployment) {
@@ -643,6 +702,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     (async () => {
       try {
         const text = await applyOptimizationInstruction(request.text || '', request.instruction || '');
+        sendResponse({ ok: true, text });
+      } catch (error) {
+        sendResponse({ ok: false, error: error.message || String(error) });
+      }
+    })();
+    return true;
+  }
+
+  if (request.action === 'translateText') {
+    (async () => {
+      try {
+        const text = await translateText(request.text || '', request.language || '');
         sendResponse({ ok: true, text });
       } catch (error) {
         sendResponse({ ok: false, error: error.message || String(error) });

@@ -177,6 +177,33 @@
     .optimization-loading.active {
       display: block;
     }
+    .translate-section {
+      margin-top: 16px;
+      margin-bottom: 16px;
+    }
+    .translate-title {
+      font-size: var(--font-size-100);
+      font-weight: var(--font-weight-semibold);
+      color: var(--color-neutral-fg-secondary);
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      margin-bottom: 8px;
+    }
+    .translate-select {
+      width: 100%;
+      padding: 8px 12px;
+      font-family: var(--font-family);
+      font-size: var(--font-size-200);
+      color: var(--color-neutral-fg);
+      background: var(--color-neutral-surface);
+      border: 1px solid var(--color-neutral-stroke);
+      border-radius: var(--radius-small);
+      cursor: pointer;
+      transition: border-color .1s;
+    }
+    .translate-select:hover { border-color: var(--color-brand); }
+    .translate-select:focus { outline: none; border-color: var(--color-brand); }
+    .translate-select:disabled { opacity: .6; cursor: progress; }
     .optimization-loading::before {
       content: '';
       display: inline-block;
@@ -373,6 +400,76 @@
     <h2 class="optimization-title">Try another optimization</h2>
     <div id="optimizationLoading" class="optimization-loading">Loading suggestions...</div>
     <div id="optimizationCards" class="optimization-cards"></div>
+  </section>
+
+  <section id="translateSection" class="translate-section" style="display:none;">
+    <h2 class="translate-title">Translate the post into...</h2>
+    <select id="translateSelect" class="translate-select">
+      <option value="">Select a language…</option>
+      <option value="English">English | English</option>
+      <option value="German">German | Deutsch</option>
+      <option value="Dutch">Dutch | Nederlands</option>
+      <option value="Spanish">Spanish | Español</option>
+      <option value="Italian">Italian | Italiano</option>
+      <option value="French">French | Français</option>
+      <option value="Turkish">Turkish | Türkçe</option>
+      <option disabled>---------</option>
+      <option value="Afrikaans">Afrikaans | Afrikaans</option>
+      <option value="Albanian">Albanian | Shqip</option>
+      <option value="Amharic">Amharic | አማርኛ</option>
+      <option value="Arabic">Arabic | العربية</option>
+      <option value="Armenian">Armenian | Հայերեն</option>
+      <option value="Azerbaijani">Azerbaijani | Azərbaycanca</option>
+      <option value="Basque">Basque | Euskara</option>
+      <option value="Belarusian">Belarusian | Беларуская</option>
+      <option value="Bosnian">Bosnian | Bosanski</option>
+      <option value="Bulgarian">Bulgarian | Български</option>
+      <option value="Catalan">Catalan | Català</option>
+      <option value="Croatian">Croatian | Hrvatski</option>
+      <option value="Czech">Czech | Čeština</option>
+      <option value="Danish">Danish | Dansk</option>
+      <option value="Estonian">Estonian | Eesti</option>
+      <option value="Finnish">Finnish | Suomi</option>
+      <option value="Galician">Galician | Galego</option>
+      <option value="Georgian">Georgian | ქართული</option>
+      <option value="Greek">Greek | Ελληνικά</option>
+      <option value="Hausa">Hausa | Hausa</option>
+      <option value="Hebrew">Hebrew | עברית</option>
+      <option value="Hungarian">Hungarian | Magyar</option>
+      <option value="Icelandic">Icelandic | Íslenska</option>
+      <option value="Igbo">Igbo | Igbo</option>
+      <option value="Irish">Irish | Gaeilge</option>
+      <option value="Kurdish">Kurdish | Kurdî</option>
+      <option value="Latvian">Latvian | Latviešu</option>
+      <option value="Lithuanian">Lithuanian | Lietuvių</option>
+      <option value="Luxembourgish">Luxembourgish | Lëtzebuergesch</option>
+      <option value="Macedonian">Macedonian | Македонски</option>
+      <option value="Malagasy">Malagasy | Malagasy</option>
+      <option value="Maltese">Maltese | Malti</option>
+      <option value="Montenegrin">Montenegrin | Crnogorski</option>
+      <option value="Norwegian">Norwegian | Norsk</option>
+      <option value="Oromo">Oromo | Afaan Oromoo</option>
+      <option value="Pashto">Pashto | پښتو</option>
+      <option value="Persian">Persian | فارسی</option>
+      <option value="Polish">Polish | Polski</option>
+      <option value="Portuguese">Portuguese | Português</option>
+      <option value="Romanian">Romanian | Română</option>
+      <option value="Russian">Russian | Русский</option>
+      <option value="Serbian">Serbian | Српски</option>
+      <option value="Shona">Shona | ChiShona</option>
+      <option value="Slovak">Slovak | Slovenčina</option>
+      <option value="Slovenian">Slovenian | Slovenščina</option>
+      <option value="Somali">Somali | Soomaali</option>
+      <option value="Swahili">Swahili | Kiswahili</option>
+      <option value="Swedish">Swedish | Svenska</option>
+      <option value="Tigrinya">Tigrinya | ትግርኛ</option>
+      <option value="Ukrainian">Ukrainian | Українська</option>
+      <option value="Welsh">Welsh | Cymraeg</option>
+      <option value="Wolof">Wolof | Wolof</option>
+      <option value="Xhosa">Xhosa | isiXhosa</option>
+      <option value="Yoruba">Yoruba | Yorùbá</option>
+      <option value="Zulu">Zulu | isiZulu</option>
+    </select>
   </section>
 
   <section id="imageSection" class="image-section" style="display:none;">

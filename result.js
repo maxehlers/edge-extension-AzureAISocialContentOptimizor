@@ -5,6 +5,8 @@ let imageDomain = '';
 const processStateEl = document.getElementById('processState');
 const optimizationSectionEl = document.getElementById('optimizationSection');
 const optimizationCardsEl = document.getElementById('optimizationCards');
+const translateSectionEl = document.getElementById('translateSection');
+const translateSelectEl = document.getElementById('translateSelect');
 
 function setProcessState(text) {
   if (processStateEl) {
@@ -22,6 +24,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     const copyBtn = document.getElementById('copyBtn');
     if (copyBtn) copyBtn.style.display = '';
     loadOptimizations(request.text);
+    if (translateSectionEl) translateSectionEl.style.display = 'block';
+    if (translateSelectEl) translateSelectEl.value = '';
     if (request.pageUrl) {
       imageHeadline = request.imageHeadline || '';
       try { imageDomain = new URL(request.pageUrl).hostname.replace(/^www\./, ''); } catch (e) { imageDomain = ''; }
@@ -346,5 +350,41 @@ document.getElementById('copyAltTextBtn')?.addEventListener('click', () => {
   const text = altContentEl?.textContent || '';
   if (!text) return;
   navigator.clipboard.writeText(text).then(() => showModal('Alt text copied!'));
+});
+
+translateSelectEl?.addEventListener('change', async (event) => {
+  const language = event.target.value;
+  if (!language || !originalText) return;
+
+  try {
+    translateSelectEl.disabled = true;
+    setOptimizationButtonsDisabled(true);
+    processStateEl.classList.add('loading');
+    processStateEl.style.display = '';
+    setProcessState(`Translating into ${language}…`);
+
+    const response = await sendRuntimeMessage({
+      action: 'translateText',
+      text: originalText,
+      language
+    });
+
+    if (!response.ok || !response.text) {
+      throw new Error(response.error || 'Could not translate text.');
+    }
+
+    originalText = response.text;
+    document.getElementById('resultDisplay').textContent = response.text;
+    processStateEl.classList.remove('loading');
+    setProcessState(`Translated into ${language}.`);
+    await loadOptimizations(response.text);
+  } catch (error) {
+    processStateEl.classList.remove('loading');
+    setProcessState('An error occurred.');
+    showWarningToast('⚠\uFE0F ' + error.message);
+  } finally {
+    translateSelectEl.disabled = false;
+    setOptimizationButtonsDisabled(false);
+  }
 });
 
