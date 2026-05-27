@@ -414,16 +414,29 @@ async function callAzureAIForWebsite(url, title, selectedText, pageContent) {
 
 async function buildImagePrompt(headline, domain, hasBackground) {
   const template = await getImagePrompt();
-  const base = template
+  let base = template
     .replace(/\{headline\}/g, headline)
     .replace(/\{domain\}/g, domain || '');
   if (hasBackground) {
-    return 'Apply a semi-transparent dark overlay to soften the provided background image.\n' + base;
+    // Remove any line that defines a background (e.g. "Background: modern abstract gradient ...")
+    // so it doesn't override the supplied image.
+    base = base
+      .split(/\r?\n/)
+      .filter(line => !/^\s*background\s*:/i.test(line))
+      .join('\n');
+    const bgInstruction = [
+      'Use the provided input image as the full-bleed background of the composition. Do NOT replace, redraw, or hide the provided image — keep its content clearly recognizable.',
+      'Apply only a subtle semi-transparent dark gradient overlay (about 35-55% opacity, stronger in the center) so the headline text is legible on top.',
+      'Crop or scale the provided image to fill the entire 1024x1024 canvas; do not leave empty borders.',
+      ''
+    ].join('\n');
+    return bgInstruction + base;
   }
   return base;
 }
 
 async function generatePromotionalImage(headline, domain, ogImageB64) {
+  const debug = { hadOgImage: !!ogImageB64, path: 'generation' };
   const { apiKey, endpoint, imageDeployment } = await chrome.storage.sync.get(['apiKey', 'endpoint', 'imageDeployment']);
   if (!apiKey || !endpoint || !imageDeployment) {
     throw new Error('Image generation is not configured. Please open Settings and fill in the Image Deployment Name field, then save.');
@@ -438,10 +451,18 @@ async function generatePromotionalImage(headline, domain, ogImageB64) {
     try {
       const bgResponse = await fetch(ogImageB64);
       if (bgResponse.ok) {
-        const bgBlob = await bgResponse.blob();
+        let bgBlob = await bgResponse.blob();
+        // Ensure the blob has an explicit image mime type — some data URLs end up as
+        // application/octet-stream which the edits API rejects.
+        if (!bgBlob.type || !bgBlob.type.startsWith('image/')) {
+          bgBlob = new Blob([await bgBlob.arrayBuffer()], { type: 'image/png' });
+        }
+        const filename = bgBlob.type === 'image/jpeg' ? 'background.jpg' : 'background.png';
+        debug.blobType = bgBlob.type;
+        debug.blobSize = bgBlob.size;
         const editsUrl = `${base}/openai/v1/images/edits`;
         const formData = new FormData();
-        formData.append('image', bgBlob, 'background.png');
+        formData.append('image', bgBlob, filename);
         formData.append('prompt', await buildImagePrompt(headline, domain, true));
         formData.append('model', imageDeployment);
         formData.append('size', '1024x1024');
@@ -450,13 +471,28 @@ async function generatePromotionalImage(headline, domain, ogImageB64) {
           headers: { 'Authorization': `Bearer ${apiKey}` },
           body: formData
         });
+        debug.editStatus = editResponse.status;
         if (editResponse.ok) {
           const data = await editResponse.json();
           const b64 = data.data?.[0]?.b64_json;
-          if (b64) return `data:image/png;base64,${b64}`;
+          if (b64) {
+            debug.path = 'edit';
+            return { imageDataUrl: `data:image/png;base64,${b64}`, debug };
+          }
+          debug.editError = 'no b64_json in response';
+          console.warn('Image edit returned no b64_json, falling back to generation:', data);
+        } else {
+          let errBody = '';
+          try { errBody = await editResponse.text(); } catch (e) { /* ignore */ }
+          debug.editError = errBody.slice(0, 500);
+          console.warn(`Image edit failed (${editResponse.status}), falling back to generation:`, errBody);
         }
+      } else {
+        debug.editError = `og fetch status ${bgResponse.status}`;
+        console.warn('Could not load og:image blob, falling back to generation. Status:', bgResponse.status);
       }
     } catch (e) {
+      debug.editError = String(e);
       console.warn('Image edit with background failed, falling back to generation:', e);
     }
   }
@@ -490,7 +526,7 @@ async function generatePromotionalImage(headline, domain, ogImageB64) {
   const data = await response.json();
   const b64 = data.data?.[0]?.b64_json;
   if (!b64) throw new Error('No image data returned from the API. Check that your Image Deployment Name is correct.');
-  return `data:image/png;base64,${b64}`;
+  return { imageDataUrl: `data:image/png;base64,${b64}`, debug };
 }
 
 async function generateTitle(resultText) {
@@ -609,36 +645,49 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       try {
         const [{ result: pageData }] = await chrome.scripting.executeScript({
           target: { tabId: tab.id },
-          func: async () => {
+          func: () => {
             const innerText = (document.body?.innerText || '').slice(0, 8000);
             const ogSrc = document.querySelector('meta[property="og:image"]')?.content ||
                           document.querySelector('meta[name="og:image"]')?.content || '';
-            let ogB64 = '';
+            // Resolve relative URLs against the document base
+            let absOgSrc = '';
             if (ogSrc) {
-              try {
-                const resp = await fetch(ogSrc);
-                if (resp.ok) {
-                  const blob = await resp.blob();
-                  ogB64 = await new Promise((res) => {
-                    const reader = new FileReader();
-                    reader.onloadend = () => res(reader.result || '');
-                    reader.readAsDataURL(blob);
-                  });
-                }
-              } catch (e) { /* OG image unavailable, continue without */ }
+              try { absOgSrc = new URL(ogSrc, document.baseURI).href; } catch (e) { absOgSrc = ogSrc; }
             }
-            return { innerText, ogSrc, ogB64 };
+            return { innerText, ogSrc: absOgSrc };
           }
         });
         pageContent = pageData?.innerText || '';
         ogImageUrl = pageData?.ogSrc || '';
-        ogImageB64 = pageData?.ogB64 || '';
+        console.log('[website-copy] extracted og:image URL:', ogImageUrl);
+        // Fetch the og:image from the service worker (uses host_permissions, bypasses page CSP)
+        if (ogImageUrl) {
+          try {
+            const resp = await fetch(ogImageUrl);
+            console.log('[website-copy] og:image fetch status:', resp.status, 'content-type:', resp.headers.get('content-type'));
+            if (resp.ok) {
+              const blob = await resp.blob();
+              ogImageB64 = await new Promise((res, rej) => {
+                const reader = new FileReader();
+                reader.onloadend = () => res(reader.result || '');
+                reader.onerror = () => rej(reader.error);
+                reader.readAsDataURL(blob);
+              });
+              console.log('[website-copy] og:image base64 length:', ogImageB64.length);
+            }
+          } catch (e) {
+            console.warn('[website-copy] og:image fetch failed:', e);
+          }
+        }
       } catch (e) {
         console.warn('Could not extract page content:', e);
       }
 
       if (ogImageB64 && resultTabId) {
         await chrome.storage.session.set({ [`ogImage_${resultTabId}`]: ogImageB64 });
+        console.log(`[website-copy] stored og:image under key ogImage_${resultTabId} (${ogImageB64.length} chars)`);
+      } else {
+        console.log('[website-copy] no og:image to store. resultTabId=', resultTabId, 'b64Len=', ogImageB64.length);
       }
 
       const text = await callAzureAIForWebsite(
@@ -727,12 +776,32 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       try {
         const tabId = sender.tab?.id;
         let ogImageB64 = '';
+        let ogLookupKey = '';
         if (tabId) {
-          const sessionData = await chrome.storage.session.get([`ogImage_${tabId}`]);
-          ogImageB64 = sessionData[`ogImage_${tabId}`] || '';
+          ogLookupKey = `ogImage_${tabId}`;
+          const sessionData = await chrome.storage.session.get([ogLookupKey]);
+          ogImageB64 = sessionData[ogLookupKey] || '';
         }
-        const imageDataUrl = await generatePromotionalImage(request.headline || '', request.domain || '', ogImageB64);
-        sendResponse({ ok: true, imageDataUrl });
+        // Fallback: if not found by tabId, scan session storage for any ogImage_* key
+        // (handles cases where the result tab id differs from what's stored).
+        if (!ogImageB64) {
+          const all = await chrome.storage.session.get(null);
+          const ogKeys = Object.keys(all).filter(k => k.startsWith('ogImage_'));
+          if (ogKeys.length === 1) {
+            ogLookupKey = ogKeys[0] + ' (fallback)';
+            ogImageB64 = all[ogKeys[0]];
+          } else if (ogKeys.length > 1) {
+            ogLookupKey = `multiple ogImage_* keys found: ${ogKeys.join(',')}`;
+          } else {
+            ogLookupKey = 'no ogImage_* keys in session storage';
+          }
+        }
+        const result = await generatePromotionalImage(request.headline || '', request.domain || '', ogImageB64);
+        sendResponse({
+          ok: true,
+          imageDataUrl: result.imageDataUrl,
+          debug: { ...result.debug, tabId, ogLookupKey, ogB64Length: ogImageB64.length }
+        });
       } catch (error) {
         sendResponse({ ok: false, error: error.message || String(error) });
       }

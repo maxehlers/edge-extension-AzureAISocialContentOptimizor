@@ -264,6 +264,7 @@ async function createImage() {
 
   try {
     const response = await sendRuntimeMessage({ action: 'generateImage', headline: imageHeadline, domain: imageDomain });
+    if (response?.debug) console.log('[promo image] debug:', response.debug);
     if (!response.ok || !response.imageDataUrl) {
       throw new Error(response.error || 'Image generation failed.');
     }

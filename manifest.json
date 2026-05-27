@@ -9,6 +9,7 @@
     "128": "icons/icon128.png"
   },
   "permissions": ["contextMenus", "tabs", "storage", "activeTab", "notifications", "scripting"],
+  "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js"
   },
