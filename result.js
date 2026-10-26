@@ -1,7 +1,7 @@
-let originalText = '';
 let imageHeadline = '';
 let imageDomain = '';
 
+const resultDisplayEl = document.getElementById('resultDisplay');
 const processStateEl = document.getElementById('processState');
 const optimizationSectionEl = document.getElementById('optimizationSection');
 const optimizationCardsEl = document.getElementById('optimizationCards');
@@ -16,9 +16,9 @@ function setProcessState(text) {
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'setResult') {
-    originalText = request.text;
-    const resultDisplay = document.getElementById('resultDisplay');
-    if (resultDisplay) { resultDisplay.style.display = ''; resultDisplay.textContent = request.text; }
+    resultDisplayEl.value = request.text;
+    document.getElementById('resultEditor').style.display = '';
+    setTextProcessing(false);
     processStateEl.classList.remove('loading');
     processStateEl.style.display = 'none';
     const copyBtn = document.getElementById('copyBtn');
@@ -39,14 +39,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       });
     }
   } else if (request.action === 'setError') {
+    setTextProcessing(false);
     processStateEl.classList.remove('loading');
     processStateEl.style.display = 'none';
     showWarningToast('⚠\uFE0F ' + request.error);
     setProcessState('An error occurred.');
   } else if (request.action === 'setLoading') {
+    setTextProcessing(true);
     processStateEl.classList.add('loading');
     setProcessState(request.text);
-    document.getElementById('resultDisplay').textContent = '';
+    resultDisplayEl.value = '';
   } else if (request.action === 'setTitle') {
     const titleEl = document.querySelector('.app-title');
     if (titleEl) titleEl.textContent = request.title;
@@ -78,6 +80,20 @@ function setOptimizationButtonsDisabled(disabled) {
   buttons.forEach((button) => {
     button.disabled = disabled;
   });
+}
+
+function setTextProcessing(processing) {
+  resultDisplayEl.readOnly = processing;
+  setOptimizationButtonsDisabled(processing);
+  if (translateSelectEl) translateSelectEl.disabled = processing;
+}
+
+function getPostText() {
+  const text = resultDisplayEl.value;
+  if (!text.trim()) {
+    throw new Error('Please enter some post text first.');
+  }
+  return text;
 }
 
 function getIconForSuggestion(suggestion) {
@@ -132,6 +148,7 @@ async function loadOptimizations(text) {
       const button = document.createElement('button');
       button.className = 'optimization-card';
       button.type = 'button';
+      button.disabled = resultDisplayEl.readOnly;
       
       const [iconSvg, label] = getIconForSuggestion(suggestion);
       
@@ -155,17 +172,19 @@ async function loadOptimizations(text) {
 }
 
 async function applyOptimization(instruction) {
-  if (!originalText || !instruction) return;
+  if (!instruction || resultDisplayEl.readOnly) return;
 
   try {
-    setOptimizationButtonsDisabled(true);
+    const text = getPostText();
+    setTextProcessing(true);
     toggleOptimizationLoading(true);
     processStateEl.classList.add('loading');
+    processStateEl.style.display = '';
     setProcessState(`Applying: ${instruction}`);
 
     const response = await sendRuntimeMessage({
       action: 'applyOptimization',
-      text: originalText,
+      text,
       instruction
     });
 
@@ -173,8 +192,7 @@ async function applyOptimization(instruction) {
       throw new Error(response.error || 'Could not apply optimization.');
     }
 
-    originalText = response.text;
-    document.getElementById('resultDisplay').textContent = response.text;
+    resultDisplayEl.value = response.text;
     processStateEl.classList.remove('loading');
     setProcessState('Optimization applied.');
     await loadOptimizations(response.text);
@@ -184,29 +202,8 @@ async function applyOptimization(instruction) {
     toggleOptimizationLoading(false);
     showWarningToast('⚠\uFE0F ' + error.message);
   } finally {
-    setOptimizationButtonsDisabled(false);
+    setTextProcessing(false);
   }
-}
-
-function stripMarkdown(markdown) {
-  let text = markdown;
-  // Remove code blocks and inline code
-  text = text.replace(/```[\s\S]*?```/g, '');
-  text = text.replace(/`([^`]+)`/g, '$1');
-  // Remove bold and italic markers
-  text = text.replace(/\*\*(.*?)\*\*/g, '$1');
-  text = text.replace(/\*(.*?)\*/g, '$1');
-  text = text.replace(/__(.*?)__/g, '$1');
-  text = text.replace(/_(.*?)_/g, '$1');
-  // Remove headings, lists, blockquotes, links, images
-  text = text.replace(/^#{1,6}\s+/gm, '');
-  text = text.replace(/^[*-+]\s+/gm, '');
-  text = text.replace(/^>\s+/gm, '');
-  text = text.replace(/!\[[^\]]*\]\([^)]*\)/g, '');
-  text = text.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1');
-  // Remove remaining markdown chars
-  text = text.replace(/\*|`|~|>/g, '');
-  return text.trim();
 }
 
 const modal = document.getElementById('modal');
@@ -234,14 +231,14 @@ function hideModal() {
   if (modal) modal.style.display = 'none';
 }
 
-document.getElementById('copyBtn').addEventListener('click', () => {
-  const plainText = stripMarkdown(originalText);
-  navigator.clipboard.writeText(plainText).then(() => {
+document.getElementById('copyBtn').addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText(getPostText());
     showModal('Copied to clipboard!');
-  }).catch((err) => {
+  } catch (err) {
     console.error('Copy failed:', err);
-    showModal('Copy failed: ' + err.message);
-  });
+    showWarningToast('Copy failed: ' + err.message);
+  }
 });
 
 document.getElementById('openSettingsBtn').addEventListener('click', () => {
@@ -355,18 +352,18 @@ document.getElementById('copyAltTextBtn')?.addEventListener('click', () => {
 
 translateSelectEl?.addEventListener('change', async (event) => {
   const language = event.target.value;
-  if (!language || !originalText) return;
+  if (!language || resultDisplayEl.readOnly) return;
 
   try {
-    translateSelectEl.disabled = true;
-    setOptimizationButtonsDisabled(true);
+    const text = getPostText();
+    setTextProcessing(true);
     processStateEl.classList.add('loading');
     processStateEl.style.display = '';
     setProcessState(`Translating into ${language}…`);
 
     const response = await sendRuntimeMessage({
       action: 'translateText',
-      text: originalText,
+      text,
       language
     });
 
@@ -374,8 +371,7 @@ translateSelectEl?.addEventListener('change', async (event) => {
       throw new Error(response.error || 'Could not translate text.');
     }
 
-    originalText = response.text;
-    document.getElementById('resultDisplay').textContent = response.text;
+    resultDisplayEl.value = response.text;
     processStateEl.classList.remove('loading');
     setProcessState(`Translated into ${language}.`);
     await loadOptimizations(response.text);
@@ -384,8 +380,6 @@ translateSelectEl?.addEventListener('change', async (event) => {
     setProcessState('An error occurred.');
     showWarningToast('⚠\uFE0F ' + error.message);
   } finally {
-    translateSelectEl.disabled = false;
-    setOptimizationButtonsDisabled(false);
+    setTextProcessing(false);
   }
 });
-

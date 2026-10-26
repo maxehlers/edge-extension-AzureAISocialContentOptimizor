@@ -9,6 +9,8 @@ An Edge extension for creating social-ready copy from selected text or full webp
 - Right-click any webpage and run `🦄 Create Social Media Copy for this Website`
 - Uses your Azure OpenAI text deployment to generate short, social-ready copy
 - Strips markdown from model output before displaying the result
+- Preserves existing URLs (including tracking parameters and fragments) and hashtags exactly when rephrasing, optimizing, translating, and copying; additional hashtags are allowed
+- Keeps the original page URL and any URLs or hashtags in selected quotes when creating website copy
 - Generates a short AI title for the popup window
 
 ### 🔁 Follow-up optimizations
@@ -45,6 +47,9 @@ An Edge extension for creating social-ready copy from selected text or full webp
 
 ### 🎨 Result window experience
 - Separate popup window for results
+- Editable, resizable plain-text post field for making manual additions before automated optimizations
+- Optimizations, translations, and copying use the current edited text, including any added URLs and hashtags
+- Editing is temporarily locked while an optimization or translation is running so pending results cannot overwrite new edits; failed requests retain your edits
 - One-click copy button for generated text
 - Loading states for text, optimizations, image generation, and alt text
 - Warning toast for API errors and success toast for copy/save actions
@@ -184,7 +189,7 @@ Path:
 3. Right-click the selection
 4. Click `📎Rephrase with Azure AI Foundry`
 5. Wait for the result popup to appear
-6. Copy the result or apply one of the optimization cards
+6. Make any manual edits directly in the post field, then copy the result or apply one of the optimization cards
 7. Optionally pick a target language from the `Translate the post into...` dropdown
 
 ### Create copy for an entire webpage
@@ -193,7 +198,7 @@ Path:
 2. Right-click anywhere on the page
 3. Click `🦄 Create Social Media Copy for this Website`
 4. Wait for the popup result
-5. Copy the text, refine it with optimization cards, or generate an image
+5. Edit the post directly, copy the text, refine it with optimization cards, or generate an image
 
 Optional:
 
@@ -248,6 +253,14 @@ If `Image Deployment Name` is left blank, the image workflow is effectively unav
 - If a page exposes an `og:image`, the extension may fetch it and use it as image-generation input
 - No additional third-party AI service is used by the extension
 
+## Tests
+
+Run the URL/hashtag preservation and result-window regression tests with Node.js (no dependencies required):
+
+```powershell
+node --test .\background.test.js
+```
+
 ## 🧪 Troubleshooting
 
 ### The Settings page opens every time
@@ -274,6 +287,10 @@ Check these items:
 - The deployment name is exact
 - The API version is compatible with your text model
 - Your Azure resource has access to the model you deployed
+
+### The AI response changed or removed an existing URL or hashtag
+
+The extension rejects results that change or drop an existing URL or hashtag, even when a custom prompt asks for it. Try the action again. For follow-up optimizations and translations, the previous text remains available and unchanged.
 
 ### I am not sure which portal to use
 

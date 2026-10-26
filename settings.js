@@ -7,6 +7,7 @@
   '- Keep it short and punchy (max 4 sentences).',
   '- Add relevant emojis.',
   '- Add relevant hashtags.',
+  '- Keep all existing URLs and hashtags exactly unchanged; additional hashtags are allowed.',
   '- Leave an empty line between paragraphs.',
   '- Return ONLY the final post text, no explanations.'
 ].join('\n');
@@ -21,6 +22,7 @@ const DEFAULT_WEBSITE_PROMPT = [
   '- Include a clear call to action (e.g. "Read more", "Check it out", "Learn more").',
   '- Add relevant emojis.',
   '- Always include a link to the webpage.',
+  '- Keep the page URL and any URLs or hashtags in the selected quote exactly unchanged.',
   '- Add relevant hashtags.',
   '- Leave an empty line between paragraphs.',
   '- Match the language of the page title.',

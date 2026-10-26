@@ -9,6 +9,7 @@ const DEFAULT_PROMPT = [
     '- Keep it short and punchy (max 4 sentences).',
     '- Add relevant emojis.',
     '- Add relevant hashtags.',
+    '- Keep all existing URLs and hashtags exactly unchanged; additional hashtags are allowed.',
     '- Leave an empty line between paragraphs.',
     '- Return ONLY the final post text, no explanations.'
   ].join('\n');
@@ -23,10 +24,19 @@ const DEFAULT_WEBSITE_PROMPT = [
   '- Include a clear call to action (e.g. "Read more", "Check it out", "Learn more").',
   '- Add relevant emojis.',
   '- Always include a link to the webpage.',
+  '- Keep the page URL and any URLs or hashtags in the selected quote exactly unchanged.',
   '- Add relevant hashtags.',
   '- Leave an empty line between paragraphs.',
   '- Match the language of the page title.',
   '- Return ONLY the final post text, no explanations.'
+].join('\n');
+
+const POST_PRESERVATION_RULES = [
+  'Keep all existing URLs and hashtags in the post exactly unchanged, character for character.',
+  'Do not translate, rename, change the case of, remove, shorten, or otherwise modify existing hashtags or URLs.',
+  'Preserve complete URLs, including paths, query parameters, tracking parameters, and fragments.',
+  'You may add relevant hashtags, but must retain all existing ones.',
+  'For webpage-based posts, preserve the supplied Page URL and all URLs and hashtags in the selected quote.'
 ].join('\n');
 
 const DEFAULT_IMAGE_PROMPT = [
@@ -93,10 +103,41 @@ chrome.runtime.onStartup.addListener(() => {
 // Ensure menu is available even when the worker is reloaded
 createContextMenu();
 
+function mapPostTokens(text, transform) {
+  return text.replace(/(?:https?:\/\/|www\.)[^\s<>"`]+|(?<![\p{L}\p{N}\p{M}])#[\p{L}\p{N}_][\p{L}\p{N}\p{M}_]*/giu, (match, offset) => {
+    let token = match;
+    const wrapper = text.slice(0, offset).match(/(\*{1,2}|_{1,2})$/)?.[0];
+    if (wrapper && token.endsWith(wrapper)) {
+      token = token.slice(0, -wrapper.length);
+    }
+    if (!token.startsWith('#')) {
+      // Exclude sentence punctuation and unbalanced Markdown/link delimiters, not URL parentheses.
+      const opening = { ')': '(', ']': '[', '}': '{' };
+      while (token) {
+        const last = token.at(-1);
+        if (/[.,!?;:]/.test(last)) {
+          token = token.slice(0, -1);
+        } else if (opening[last] && token.split(last).length > token.split(opening[last]).length) {
+          token = token.slice(0, -1);
+        } else {
+          break;
+        }
+      }
+    }
+    return transform(token) + match.slice(token.length);
+  });
+}
+
 function stripMarkdown(markdownText) {
   if (!markdownText || typeof markdownText !== 'string') return '';
 
-  let text = markdownText;
+  const tokens = [];
+  let marker = '\u0000';
+  while (markdownText.includes(marker)) marker += '\u0000';
+  let text = mapPostTokens(markdownText, (token) => {
+    tokens.push(token);
+    return `${marker}${tokens.length - 1}${marker}`;
+  });
 
   // Code blocks
   text = text.replace(/```[\s\S]*?```/g, '');
@@ -118,12 +159,8 @@ function stripMarkdown(markdownText) {
   text = text.replace(/\*(.*?)\*/g, '$1');
   text = text.replace(/_(.*?)_/g, '$1');
 
-  // Links: [text](url) -> text
-  text = text.replace(/!\[([^\]]*)\]\([^\)]*\)/g, '$1');
-  text = text.replace(/\[([^\]]+)\]\([^\)]*\)/g, '$1');
-
-  // Remove images that may remain
-  text = text.replace(/!\[[^\]]*\]\([^\)]*\)/g, '');
+  // Keep link targets in the plain-text post.
+  text = text.replace(/!?\[([^\]]*)\]\(([^)]*)\)/g, '$1 ($2)');
 
   // Remove horizontal rules
   text = text.replace(/^\s*([-_*]){3,}\s*$/gm, '');
@@ -132,7 +169,29 @@ function stripMarkdown(markdownText) {
   text = text.replace(/\r\n|\r/g, '\n');
   text = text.replace(/\n{3,}/g, '\n\n');
 
+  text = text.replace(new RegExp(`${marker}(\\d+)${marker}`, 'g'), (_, index) => tokens[Number(index)]);
   return text.trim();
+}
+
+function finalizePost(markdownText, ...sourceTexts) {
+  const text = stripMarkdown(markdownText);
+  const available = new Map();
+  mapPostTokens(text, (token) => {
+    available.set(token, (available.get(token) || 0) + 1);
+    return token;
+  });
+  for (const sourceText of sourceTexts) {
+    const remaining = new Map(available);
+    mapPostTokens(sourceText, (token) => {
+      const count = remaining.get(token) || 0;
+      if (!count) {
+        throw new Error('The AI response changed or removed an existing URL or hashtag. Please try again.');
+      }
+      remaining.set(token, count - 1);
+      return token;
+    });
+  }
+  return text;
 }
 
 async function callAzureAI(text) {
@@ -153,6 +212,7 @@ async function callAzureAI(text) {
     },
     body: JSON.stringify({
       messages: [
+        { role: 'system', content: POST_PRESERVATION_RULES },
         { role: 'user', content: `Use these instructions:\n${prompt}\n\n This is the social media post to be transformed:\n ${text}` }
       ],
       max_completion_tokens: 3000
@@ -178,7 +238,7 @@ async function callAzureAI(text) {
     const reason = data.choices?.[0]?.finish_reason || 'unknown';
     throw new Error(`The API returned an empty response (finish_reason: ${reason}). Try a different API version or check your deployment.`);
   }
-  return stripMarkdown(markdownResult);
+  return finalizePost(markdownResult, text);
 
 }
 
@@ -221,6 +281,7 @@ async function getOptimizationSuggestions(currentText) {
     'You are helping optimize social-media copy.',
     'Given the text below, return exactly 4 short optimization actions.',
     'Each action must be a standalone instruction (max 8 words).',
+    'Do not suggest changing or removing existing URLs or hashtags; adding hashtags is allowed.',
     'Return plain text only, one action per line, no numbering.'
   ].join('\n');
 
@@ -274,6 +335,7 @@ async function applyOptimizationInstruction(currentText, instruction) {
     },
     body: JSON.stringify({
       messages: [
+        { role: 'system', content: POST_PRESERVATION_RULES },
         { role: 'user', content: `${prompt}\n\nTEXT:\n${currentText}` }
       ],
       max_completion_tokens: 3000
@@ -290,7 +352,7 @@ async function applyOptimizationInstruction(currentText, instruction) {
     const reason = data.choices?.[0]?.finish_reason || 'unknown';
     throw new Error(`The API returned an empty response (finish_reason: ${reason}). Try a different API version or check your deployment.`);
   }
-  return stripMarkdown(markdownResult);
+  return finalizePost(markdownResult, currentText);
 }
 
 async function translateText(currentText, language) {
@@ -313,7 +375,8 @@ async function translateText(currentText, language) {
     `Translate the following social media post into ${language}.`,
     '',
     'Rules:',
-    '- Preserve the tone, emojis, hashtags, line breaks, and any URLs.',
+    '- Preserve the tone, emojis, and line breaks.',
+    '- Keep all existing URLs and hashtags exactly unchanged; additional hashtags are allowed.',
     '- Do not add explanations or notes.',
     '- Return ONLY the translated post text.'
   ].join('\n');
@@ -326,6 +389,7 @@ async function translateText(currentText, language) {
     },
     body: JSON.stringify({
       messages: [
+        { role: 'system', content: POST_PRESERVATION_RULES },
         { role: 'user', content: `${prompt}\n\nTEXT:\n${currentText}` }
       ],
       max_completion_tokens: 3000
@@ -349,7 +413,7 @@ async function translateText(currentText, language) {
     const reason = data.choices?.[0]?.finish_reason || 'unknown';
     throw new Error(`The API returned an empty response (finish_reason: ${reason}). Try a different API version or check your deployment.`);
   }
-  return stripMarkdown(markdownResult);
+  return finalizePost(markdownResult, currentText);
 }
 
 async function callAzureAIForWebsite(url, title, selectedText, pageContent) {
@@ -386,6 +450,7 @@ async function callAzureAIForWebsite(url, title, selectedText, pageContent) {
     },
     body: JSON.stringify({
       messages: [
+        { role: 'system', content: POST_PRESERVATION_RULES },
         { role: 'user', content: prompt }
       ],
       max_completion_tokens: 3000
@@ -409,7 +474,7 @@ async function callAzureAIForWebsite(url, title, selectedText, pageContent) {
     const reason = data.choices?.[0]?.finish_reason || 'unknown';
     throw new Error(`The API returned an empty response (finish_reason: ${reason}). Try a different API version or check your deployment.`);
   }
-  return stripMarkdown(markdownResult);
+  return finalizePost(markdownResult, url || '', selectedText || '');
 }
 
 async function buildImagePrompt(headline, domain, hasBackground) {
@@ -845,4 +910,3 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 });
-
